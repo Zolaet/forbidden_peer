@@ -24,28 +24,52 @@ class User extends Authenticatable
         'remember_token',
     ];
 
-    // Every user automatically gets a USDT wallet
-    public function wallet(): HasOne
+    protected function casts(): array
     {
-        return $table = $this->hasOne(Wallet::class)->where('currency', 'USDT');
+        return [
+            'email_verified_at' => 'datetime',
+            'password' => 'hashed',
+        ];
     }
 
+    // --- P2P Relationships ---
+
+    /**
+     * User's main cryptocurrency wallet.
+     */
+    public function wallet(): HasOne
+    {
+        return $this->hasOne(Wallet::class);
+    }
+
+    /**
+     * User's saved payment methods for accepting fiat.
+     */
     public function paymentMethods(): HasMany
     {
         return $this->hasMany(PaymentMethod::class);
     }
 
+    /**
+     * Marketplace buy/sell offers posted by the user.
+     */
     public function offers(): HasMany
     {
         return $this->hasMany(P2pOffer::class);
     }
 
-    public function buyTrades(): HasMany
+    /**
+     * Trades where the user is buying crypto.
+     */
+    public function tradesAsBuyer(): HasMany
     {
         return $this->hasMany(P2pTrade::class, 'buyer_id');
     }
 
-    public function sellTrades(): HasMany
+    /**
+     * Trades where the user is selling crypto.
+     */
+    public function tradesAsSeller(): HasMany
     {
         return $this->hasMany(P2pTrade::class, 'seller_id');
     }
