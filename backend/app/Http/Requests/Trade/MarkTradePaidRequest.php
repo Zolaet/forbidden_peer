@@ -4,7 +4,7 @@ namespace App\Http\Requests\Trade;
 
 use Illuminate\Foundation\Http\FormRequest;
 
-class ReleaseEscrowRequest extends FormRequest
+class MarkTradePaidRequest extends FormRequest
 {
     public function authorize(): bool
     {
@@ -14,7 +14,8 @@ class ReleaseEscrowRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'confirm_receipt' => ['required', 'accepted'],
+            'proof_image' => ['required', 'image', 'mimes:jpeg,png,jpg', 'max:5120'],
+            'note' => ['nullable', 'string', 'max:500'],
         ];
     }
 }

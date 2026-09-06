@@ -2,28 +2,21 @@
 
 namespace App\Http\Requests\Trade;
 
-use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
 
 class InitiateTradeRequest extends FormRequest
 {
-    /**
-     * Determine if the user is authorized to make this request.
-     */
     public function authorize(): bool
     {
-        return false;
+        return true;
     }
 
-    /**
-     * Get the validation rules that apply to the request.
-     *
-     * @return array<string, ValidationRule|array<mixed>|string>
-     */
     public function rules(): array
     {
         return [
-            //
+            'offer_id' => ['required', 'exists:p2p_offers,id'],
+            'crypto_amount' => ['required', 'numeric', 'gt:0'],
+            'payment_method_id' => ['required', 'exists:payment_methods,id'],
         ];
     }
 }
