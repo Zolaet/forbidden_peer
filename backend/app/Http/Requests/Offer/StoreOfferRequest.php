@@ -2,28 +2,25 @@
 
 namespace App\Http\Requests\Offer;
 
-use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
 
 class StoreOfferRequest extends FormRequest
 {
-    /**
-     * Determine if the user is authorized to make this request.
-     */
     public function authorize(): bool
     {
-        return false;
+        return true;
     }
 
-    /**
-     * Get the validation rules that apply to the request.
-     *
-     * @return array<string, ValidationRule|array<mixed>|string>
-     */
     public function rules(): array
     {
         return [
-            //
+            'type' => ['required', 'in:buy,sell'],
+            'fiat_currency' => ['required', 'string', 'size:3'],
+            'price' => ['required', 'numeric', 'gt:0'],
+            'total_amount' => ['required', 'numeric', 'gt:0'],
+            'min_limit' => ['required', 'numeric', 'gt:0'],
+            'max_limit' => ['required', 'numeric', 'gte:min_limit'],
+            'payment_window_minutes' => ['required', 'integer', 'between:15,60'],
         ];
     }
 }
