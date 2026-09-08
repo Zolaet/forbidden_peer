@@ -22,7 +22,9 @@ class OfferController extends Controller
             ->where('status', 'active')
             ->where('type', $type)
             ->when($fiat, fn($q) => $q->where('fiat_currency', strtoupper($fiat)))
-            ->orderBy('price', $type === 'buy' ? 'asc' : 'desc')
+            // type=sell are crypto sellers (buyers want the cheapest first);
+            // type=buy  are crypto buyers (sellers want the best rate first).
+            ->orderBy('price', $type === 'sell' ? 'asc' : 'desc')
             ->paginate(15);
 
         return response()->json(['offers' => $offers]);
