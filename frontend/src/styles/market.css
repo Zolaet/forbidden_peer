@@ -1,0 +1,205 @@
+/* ============================================================
+   PeerX — marketplace
+   ============================================================ */
+
+.mkt-head {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
+  padding: 6px 0 18px;
+}
+.mkt-tabs {
+  display: flex;
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  overflow: hidden;
+  background: var(--bg-2);
+}
+.mkt-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 46px;
+  padding: 0 26px;
+  font-size: 15px;
+  font-weight: 750;
+  transition: background 0.14s, color 0.14s;
+}
+.mkt-tab.buy-tab {
+  color: var(--text-2);
+}
+.mkt-tab.buy-tab[aria-pressed='true'] {
+  color: var(--buy);
+  background: linear-gradient(180deg, rgba(23, 209, 138, 0.16), rgba(23, 209, 138, 0.05));
+}
+.mkt-tab.sell-tab[aria-pressed='true'] {
+  color: var(--sell);
+  background: linear-gradient(180deg, rgba(251, 81, 104, 0.16), rgba(251, 81, 104, 0.05));
+}
+.mkt-tab svg {
+  opacity: 0.95;
+}
+
+.mkt-tool {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.mkt-select {
+  position: relative;
+}
+.mkt-select select.input {
+  min-width: 150px;
+  height: 40px;
+  border-radius: var(--r-sm);
+}
+
+.mkt-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+/* ---- single ad row ---- */
+.ad {
+  display: grid;
+  grid-template-columns: minmax(0, 1.35fr) 1.05fr 0.95fr 1.15fr auto;
+  gap: 16px;
+  align-items: center;
+  padding: 15px 18px;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.015), transparent),
+    var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  transition: border-color 0.15s, transform 0.12s, background 0.15s;
+}
+.ad:hover {
+  border-color: var(--line-strong);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.03), transparent),
+    var(--surface-2);
+}
+.ad-adv {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  min-width: 0;
+}
+.ad-adv .aa-name {
+  font-weight: 650;
+  font-size: 14px;
+  color: var(--text-1);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.ad-adv .aa-sub {
+  font-size: 12px;
+  color: var(--text-3);
+  margin-top: 2px;
+}
+.ad-price .p-top {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-3);
+}
+.ad-price .p-num {
+  font-family: var(--font-mono);
+  font-size: 21px;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  margin-top: 2px;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.ad-price .p-num.buy { color: var(--buy); }
+.ad-price .p-num.sell { color: var(--sell); }
+.ad-cell .c-label {
+  font-size: 11.5px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-3);
+  margin-bottom: 4px;
+}
+.ad-cell .c-val {
+  font-family: var(--font-mono);
+  font-size: 14.5px;
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-1);
+}
+.ad-cell .c-val.faint {
+  color: var(--text-3);
+  font-weight: 500;
+}
+
+.ad-actions {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 6px;
+}
+.ad-actions .btn {
+  min-width: 108px;
+}
+.ad-own {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11.5px;
+  color: var(--text-3);
+  font-weight: 600;
+}
+
+/* ghost row header */
+.ad-labels {
+  display: grid;
+  grid-template-columns: minmax(0, 1.35fr) 1.05fr 0.95fr 1.15fr auto;
+  gap: 16px;
+  padding: 2px 18px 8px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-3);
+}
+.ad-labels .la-r {
+  text-align: right;
+}
+
+/* skeleton loading */
+.sk {
+  border-radius: var(--r-md);
+  background: linear-gradient(90deg, var(--surface) 25%, var(--surface-2) 50%, var(--surface) 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.3s infinite;
+  border: 1px solid var(--line);
+}
+@keyframes shimmer {
+  to { background-position: -200% 0; }
+}
+
+/* fiat quick chips */
+.quick-fiats {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+@media (max-width: 900px) {
+  .ad {
+    grid-template-columns: 1.2fr 1fr 1fr;
+  }
+  .ad-adv { grid-column: 1 / -1; }
+  .ad-actions { grid-column: 1 / -1; flex-direction: row; justify-content: space-between; }
+  .ad-labels { display: none; }
+}
+@media (max-width: 560px) {
+  .ad { grid-template-columns: 1fr 1fr; gap: 12px; }
+  .ad-price .p-num { font-size: 18px; }
+}

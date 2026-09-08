@@ -1,0 +1,305 @@
+/* ============================================================
+   PeerX — app shell: navbar, footer, wallet
+   ============================================================ */
+
+.nav {
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  height: var(--nav-h);
+  background: rgba(7, 11, 18, 0.78);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border-bottom: 1px solid var(--line);
+}
+.nav-inner {
+  height: 100%;
+  display: flex;
+  align-items: center;
+  gap: 22px;
+}
+.nav-brand {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  font-size: 19px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  color: #fff;
+  margin-right: 4px;
+}
+.nav-brand em {
+  font-style: normal;
+  color: var(--brand-2);
+}
+.nav-links {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  height: 100%;
+}
+.nav-link {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  height: 38px;
+  padding: 0 13px;
+  border-radius: var(--r-sm);
+  font-size: 14.5px;
+  font-weight: 550;
+  color: var(--text-2);
+  transition: color 0.14s, background 0.14s;
+}
+.nav-link:hover {
+  color: var(--text-1);
+  background: rgba(255, 255, 255, 0.04);
+}
+.nav-link.active {
+  color: var(--text-1);
+}
+.nav-link.active::after {
+  content: '';
+  position: absolute;
+  left: 12px;
+  right: 12px;
+  bottom: -16px;
+  height: 2px;
+  border-radius: 2px;
+  background: var(--brand);
+}
+.nav-spacer {
+  flex: 1;
+}
+
+/* wallet balance pill in nav */
+.wallet-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  height: 40px;
+  padding: 0 12px 0 8px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-pill);
+  background: var(--surface);
+  transition: border-color 0.14s, background 0.14s;
+}
+.wallet-chip:hover {
+  border-color: var(--line-strong);
+  background: var(--surface-2);
+}
+.wallet-chip .wt-c {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  line-height: 1.15;
+}
+.wallet-chip .wt-label {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-3);
+}
+.wallet-chip .wt-val {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--buy);
+}
+
+/* user avatar + dropdown */
+.user-menu {
+  position: relative;
+}
+.user-trigger {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 40px;
+  padding: 0 10px 0 6px;
+  border-radius: var(--r-pill);
+  border: 1px solid transparent;
+  transition: background 0.14s, border-color 0.14s;
+}
+.user-trigger:hover {
+  background: var(--surface);
+  border-color: var(--line);
+}
+.user-trigger .ut-name {
+  font-size: 13.5px;
+  font-weight: 600;
+  max-width: 130px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.dropdown {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  min-width: 228px;
+  background: var(--surface-2);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--r-md);
+  box-shadow: var(--shadow-3);
+  padding: 6px;
+  z-index: 55;
+  animation: popIn 0.14s ease;
+}
+.dropdown-head {
+  padding: 10px 12px 8px;
+  border-bottom: 1px solid var(--line);
+  margin-bottom: 6px;
+}
+.dropdown-head .d-name {
+  font-weight: 700;
+  font-size: 14px;
+}
+.dropdown-head .d-mail {
+  font-size: 12px;
+  color: var(--text-3);
+  word-break: break-all;
+}
+.dropdown-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 9px 12px;
+  border-radius: var(--r-sm);
+  font-size: 13.5px;
+  font-weight: 550;
+  color: var(--text-2);
+  text-align: left;
+  transition: background 0.12s, color 0.12s;
+}
+.dropdown-item:hover {
+  background: var(--surface-3);
+  color: var(--text-1);
+}
+.dropdown-item svg {
+  flex-shrink: 0;
+  opacity: 0.85;
+}
+.dropdown-sep {
+  height: 1px;
+  background: var(--line);
+  margin: 6px 4px;
+}
+.dropdown-item.danger {
+  color: #ff8d9a;
+}
+.dropdown-item.danger:hover {
+  background: var(--sell-soft);
+}
+
+/* footer */
+.app-foot {
+  border-top: 1px solid var(--line);
+  margin-top: 24px;
+  padding: 26px 0;
+  color: var(--text-3);
+  font-size: 12.5px;
+}
+.foot-inner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+.foot-trust {
+  display: flex;
+  gap: 18px;
+  flex-wrap: wrap;
+}
+.foot-trust span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--text-2);
+}
+
+/* wallet modal */
+.wallet-hero {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 18px;
+  border-radius: var(--r-md);
+  background:
+    radial-gradient(300px 120px at 15% 0%, rgba(94, 140, 255, 0.22), transparent 70%),
+    linear-gradient(180deg, var(--surface-2), var(--surface));
+  border: 1px solid var(--line-strong);
+}
+.wallet-hero .w-total-label {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--text-3);
+}
+.wallet-hero .w-total {
+  font-size: 30px;
+  font-weight: 800;
+  font-family: var(--font-mono);
+  letter-spacing: -0.02em;
+  color: #fff;
+}
+.wallet-hero .w-coin {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--brand-2);
+}
+.wallet-rows {
+  margin-top: 14px;
+  display: flex;
+  flex-direction: column;
+}
+.wallet-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 4px;
+  border-bottom: 1px solid var(--line-faint);
+}
+.wallet-row:last-child {
+  border-bottom: none;
+}
+.wallet-row .w-k {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 13.5px;
+  color: var(--text-2);
+}
+.wallet-row .w-v {
+  font-weight: 700;
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+.wallet-row .w-v.avail {
+  color: var(--text-1);
+}
+.wallet-row .w-v.escrow {
+  color: var(--gold);
+}
+
+/* mobile: condense nav */
+@media (max-width: 900px) {
+  .nav-link {
+    padding: 0 10px;
+    font-size: 13.5px;
+  }
+  .nav-links {
+    gap: 0;
+  }
+  .wallet-chip .wt-label {
+    display: none;
+  }
+}
+@media (max-width: 700px) {
+  .nav-links {
+    display: none;
+  }
+}

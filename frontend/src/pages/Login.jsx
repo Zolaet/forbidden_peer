@@ -1,57 +1,104 @@
 import { useState } from 'react';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { useNavigate, Link } from 'react-router-dom';
+import { apiError } from '../lib/format';
+import AuthLayout from '../components/AuthLayout';
+import Field from '../components/Field';
+import '../styles/auth.css';
 
 export default function Login() {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [error, setError] = useState('');
   const { login } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
+  const from = location.state?.from || '/marketplace';
 
-  const handleSubmit = async (e) => {
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [show, setShow] = useState(false);
+  const [error, setError] = useState('');
+  const [busy, setBusy] = useState(false);
+
+  const submit = async (e) => {
     e.preventDefault();
     setError('');
+    setBusy(true);
     try {
-      await login(email, password);
-      navigate('/marketplace');
+      await login(email.trim(), password);
+      navigate(from, { replace: true });
     } catch (err) {
-      setError(err.response?.data?.message || 'Invalid credentials.');
+      setError(apiError(err, 'Invalid credentials.'));
+    } finally {
+      setBusy(false);
     }
   };
 
   return (
-    <div style={{ maxWidth: '400px', margin: '50px auto', padding: '20px', border: '1px solid #ccc', borderRadius: '8px' }}>
-      <h2>Login to P2P Exchange</h2>
-      {error && <p style={{ color: 'red' }}>{error}</p>}
-      <form onSubmit={handleSubmit}>
-        <div style={{ marginBottom: '15px' }}>
-          <label>Email</label>
+    <AuthLayout>
+      <h2 className="ac-title">Welcome back</h2>
+      <p className="ac-sub">Sign in to continue trading on the marketplace.</p>
+
+      {error && (
+        <div className="auth-banner" role="alert">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 8v4M12 16h.01"/></svg>
+          {error}
+        </div>
+      )}
+
+      <form onSubmit={submit} noValidate>
+        <Field label="Email address" htmlFor="email" required>
           <input
+            id="email"
+            className="input"
             type="email"
+            autoComplete="email"
+            placeholder="you@example.com"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             required
-            style={{ width: '100%', padding: '8px', marginTop: '5px' }}
           />
-        </div>
-        <div style={{ marginBottom: '15px' }}>
-          <label>Password</label>
-          <input
-            type="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            required
-            style={{ width: '100%', padding: '8px', marginTop: '5px' }}
-          />
-        </div>
-        <button type="submit" style={{ width: '100%', padding: '10px', backgroundColor: '#007bff', color: '#fff', border: 'none', borderRadius: '4px' }}>
-          Login
+        </Field>
+
+        <Field label="Password" htmlFor="password" required>
+          <div style={{ position: 'relative' }}>
+            <input
+              id="password"
+              className="input"
+              type={show ? 'text' : 'password'}
+              autoComplete="current-password"
+              placeholder="••••••••"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              style={{ paddingRight: 44 }}
+              required
+            />
+            <button
+              type="button"
+              onClick={() => setShow((s) => !s)}
+              aria-label={show ? 'Hide password' : 'Show password'}
+              style={{
+                position: 'absolute',
+                right: 4,
+                top: 4,
+                height: 36,
+                padding: '0 10px',
+                color: 'var(--text-3)',
+                fontSize: 12,
+                fontWeight: 650,
+              }}
+            >
+              {show ? 'HIDE' : 'SHOW'}
+            </button>
+          </div>
+        </Field>
+
+        <button type="submit" className="btn btn-primary btn-lg btn-block" disabled={busy} style={{ marginTop: 4 }}>
+          {busy ? 'Signing in…' : 'Sign in'}
         </button>
       </form>
-      <p style={{ marginTop: '15px' }}>
-        Don't have an account? <Link to="/register">Register here</Link>
+
+      <p className="auth-alt">
+        New to PeerX? <Link to="/register">Create an account</Link>
       </p>
-    </div>
+    </AuthLayout>
   );
 }

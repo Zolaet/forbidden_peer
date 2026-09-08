@@ -1,111 +1,158 @@
+/* ============================================================
+   PeerX — global tokens, reset & base
+   Dark P2P exchange aesthetic. Light-theme colors are never
+   defined — this app is dark-only by design.
+   ============================================================ */
+
 :root {
-  --text: #6b6375;
-  --text-h: #08060d;
-  --bg: #fff;
-  --border: #e5e4e7;
-  --code-bg: #f4f3ec;
-  --accent: #aa3bff;
-  --accent-bg: rgba(170, 59, 255, 0.1);
-  --accent-border: rgba(170, 59, 255, 0.5);
-  --social-bg: rgba(244, 243, 236, 0.5);
-  --shadow:
-    rgba(0, 0, 0, 0.1) 0 10px 15px -3px, rgba(0, 0, 0, 0.05) 0 4px 6px -2px;
+  /* Surfaces */
+  --bg: #070b12;
+  --bg-2: #0b1120;
+  --bg-glow: rgba(76, 118, 255, 0.07);
+  --surface: #0f1726;
+  --surface-2: #15203a;
+  --surface-3: #1c2a4a;
+  --line: rgba(150, 168, 201, 0.14);
+  --line-strong: rgba(150, 168, 201, 0.26);
+  --line-faint: rgba(150, 168, 201, 0.08);
 
-  --sans: system-ui, 'Segoe UI', Roboto, sans-serif;
-  --heading: system-ui, 'Segoe UI', Roboto, sans-serif;
-  --mono: ui-monospace, Consolas, monospace;
+  /* Text */
+  --text-1: #eef2fb;
+  --text-2: #9aa7c2;
+  --text-3: #64718e;
 
-  font: 18px/145% var(--sans);
-  letter-spacing: 0.18px;
-  color-scheme: light dark;
-  color: var(--text);
-  background: var(--bg);
-  font-synthesis: none;
-  text-rendering: optimizeLegibility;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
+  /* Brand + semantic */
+  --brand: #5e8cff;
+  --brand-2: #8fb0ff;
+  --brand-contrast: #08122b;
+  --buy: #17d18a;
+  --buy-strong: #12b577;
+  --sell: #fb5168;
+  --sell-strong: #ec4058;
+  --gold: #f0b90b;
+  --info: #53a7ff;
+  --danger: #fb5168;
+  --warning: #f0b90b;
 
-  @media (max-width: 1024px) {
-    font-size: 16px;
-  }
+  /* alpha helpers */
+  --buy-soft: rgba(23, 209, 138, 0.13);
+  --sell-soft: rgba(251, 81, 104, 0.13);
+  --brand-soft: rgba(94, 140, 255, 0.14);
+  --gold-soft: rgba(240, 185, 11, 0.13);
+
+  /* shape */
+  --r-lg: 16px;
+  --r-md: 12px;
+  --r-sm: 8px;
+  --r-pill: 999px;
+
+  /* type */
+  --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI',
+    Roboto, Helvetica, Arial, sans-serif;
+  --font-mono: 'SFMono-Regular', ui-monospace, 'JetBrains Mono', 'SF Mono',
+    'Cascadia Code', Menlo, Consolas, monospace;
+
+  --shadow-1: 0 1px 2px rgba(0, 0, 0, 0.35);
+  --shadow-2: 0 8px 24px -8px rgba(0, 0, 0, 0.55);
+  --shadow-3: 0 24px 60px -12px rgba(0, 0, 0, 0.65);
+  --ring: 0 0 0 3px rgba(94, 140, 255, 0.28);
+
+  --nav-h: 64px;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --text: #9ca3af;
-    --text-h: #f3f4f6;
-    --bg: #16171d;
-    --border: #2e303a;
-    --code-bg: #1f2028;
-    --accent: #c084fc;
-    --accent-bg: rgba(192, 132, 252, 0.15);
-    --accent-border: rgba(192, 132, 252, 0.5);
-    --social-bg: rgba(47, 48, 58, 0.5);
-    --shadow:
-      rgba(0, 0, 0, 0.4) 0 10px 15px -3px, rgba(0, 0, 0, 0.25) 0 4px 6px -2px;
-  }
-
-  #social .button-icon {
-    filter: invert(1) brightness(2);
-  }
-}
-
-body {
-  margin: 0;
-}
-
-#root {
-  width: 1126px;
-  max-width: 100%;
-  margin: 0 auto;
-  text-align: center;
-  border-inline: 1px solid var(--border);
-  min-height: 100svh;
-  display: flex;
-  flex-direction: column;
+*,
+*::before,
+*::after {
   box-sizing: border-box;
 }
 
-h1,
-h2 {
-  font-family: var(--heading);
-  font-weight: 500;
-  color: var(--text-h);
-}
-
-h1 {
-  font-size: 56px;
-  letter-spacing: -1.68px;
-  margin: 32px 0;
-  @media (max-width: 1024px) {
-    font-size: 36px;
-    margin: 20px 0;
-  }
-}
-h2 {
-  font-size: 24px;
-  line-height: 118%;
-  letter-spacing: -0.24px;
-  margin: 0 0 8px;
-  @media (max-width: 1024px) {
-    font-size: 20px;
-  }
-}
-p {
+* {
   margin: 0;
 }
 
-code,
-.counter {
-  font-family: var(--mono);
-  display: inline-flex;
-  border-radius: 4px;
-  color: var(--text-h);
+html,
+body,
+#root {
+  height: 100%;
 }
 
-code {
+body {
+  font-family: var(--font-sans);
   font-size: 15px;
-  line-height: 135%;
-  padding: 4px 8px;
-  background: var(--code-bg);
+  line-height: 1.5;
+  color: var(--text-1);
+  background-color: var(--bg);
+  background-image:
+    radial-gradient(1000px 420px at 50% -180px, var(--bg-glow), transparent 70%),
+    linear-gradient(180deg, var(--bg-2), var(--bg) 480px);
+  background-repeat: no-repeat;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+}
+
+body::-webkit-scrollbar {
+  width: 11px;
+}
+body::-webkit-scrollbar-thumb {
+  background: #223049;
+  border-radius: 999px;
+  border: 3px solid var(--bg);
+}
+body::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+img,
+svg,
+video {
+  display: block;
+  max-width: 100%;
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+  color: inherit;
+}
+
+button {
+  cursor: pointer;
+  background: none;
+  border: none;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+input::placeholder,
+textarea::placeholder {
+  color: var(--text-3);
+}
+
+h1, h2, h3, h4 {
+  font-weight: 650;
+  letter-spacing: -0.015em;
+  color: var(--text-1);
+  line-height: 1.15;
+}
+
+.tnum {
+  font-variant-numeric: tabular-nums;
+}
+
+.mono {
+  font-family: var(--font-mono);
+}
+
+/* Focus accessibility */
+:focus-visible {
+  outline: 2px solid var(--brand);
+  outline-offset: 2px;
+  border-radius: 4px;
 }
