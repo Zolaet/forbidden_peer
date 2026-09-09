@@ -51,6 +51,38 @@ class User extends Authenticatable
     }
 
     /**
+     * The user's deposit addresses (one per network/currency).
+     */
+    public function cryptoAddresses(): HasMany
+    {
+        return $this->hasMany(CryptoAddress::class);
+    }
+
+    /**
+     * Inbound BEP-20 deposits detected for this user.
+     */
+    public function deposits(): HasMany
+    {
+        return $this->hasMany(Deposit::class);
+    }
+
+    /**
+     * Outbound BEP-20 withdrawal requests for this user.
+     */
+    public function withdrawals(): HasMany
+    {
+        return $this->hasMany(Withdrawal::class);
+    }
+
+    /**
+     * Internal balance audit ledger for this user.
+     */
+    public function walletTransactions(): HasMany
+    {
+        return $this->hasMany(WalletTransaction::class);
+    }
+
+    /**
      * Marketplace buy/sell offers posted by the user.
      */
     public function offers(): HasMany

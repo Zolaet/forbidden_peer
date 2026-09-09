@@ -13,10 +13,24 @@ import { apiError } from '../lib/format';
 import { IconPlus, IconTrash, IconShield, IconCreditCard } from '../components/icons';
 
 const FIELD_HINTS = {
-  bank_transfer: { accLabel: 'Account number', providerLabel: 'Bank name', providerPh: 'e.g. Access Bank', accPh: 'e.g. 0123456789' },
-  mobile_money: { accLabel: 'Phone number', providerLabel: 'Provider', providerPh: 'e.g. M-Pesa / MTN MoMo', accPh: 'e.g. +254 712 345 678' },
-  paypal: { accLabel: 'PayPal email', providerLabel: 'Provider', providerPh: 'PayPal', accPh: 'you@example.com' },
-  other: { accLabel: 'Account number / ID', providerLabel: 'Provider', providerPh: 'e.g. Coinbase / Skrill', accPh: 'Identifier' },
+  bank_transfer: {
+    accLabel: 'Account number',
+    providerLabel: 'Bank name',
+    providerPh: 'e.g. Commercial Bank of Ethiopia',
+    accPh: 'e.g. 1000123456789',
+  },
+  telebirr: {
+    accLabel: 'Telebirr phone number',
+    providerLabel: 'Provider',
+    providerPh: 'Telebirr',
+    accPh: 'e.g. +251 911 000 000',
+  },
+  other: {
+    accLabel: 'Account number / ID',
+    providerLabel: 'Provider',
+    providerPh: 'e.g. bank name, wallet',
+    accPh: 'Identifier',
+  },
 };
 
 export default function PaymentMethods() {
@@ -116,7 +130,7 @@ export default function PaymentMethods() {
             <IconCreditCard size={24} />
           </span>
           <div className="state-title">No payment methods yet</div>
-          <p className="small">Add a bank account, mobile-money number or PayPal so traders can pay you.</p>
+          <p className="small">Add a bank account or Telebirr number so buyers can pay you in ETB.</p>
           <button className="btn btn-primary btn-sm" style={{ marginTop: 10 }} onClick={() => { setAddOpen(true); reset(); }}>
             <IconPlus size={15} /> Add your first method
           </button>
@@ -209,7 +223,7 @@ export default function PaymentMethods() {
           </Field>
 
           <Field label="Account holder name" error={errors.accountName} required>
-            <input className="input" placeholder="e.g. Ada Obi" value={accountName}
+            <input className="input" placeholder="e.g. Abebe Kebede" value={accountName}
               onChange={(e) => setAccountName(e.target.value)} />
           </Field>
 

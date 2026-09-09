@@ -97,7 +97,7 @@ export default function Login() {
       </form>
 
       <p className="auth-alt">
-        New to PeerX? <Link to="/register">Create an account</Link>
+        New to Forbidden? <Link to="/register">Create an account</Link>
       </p>
     </AuthLayout>
   );

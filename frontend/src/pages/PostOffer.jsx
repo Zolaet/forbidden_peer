@@ -4,7 +4,7 @@ import api from '../api/axios';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../components/Toast';
 import Field from '../components/Field';
-import { CRYPTO, FIAT_CURRENCIES, fiatSymbol } from '../lib/constants';
+import { CRYPTO, fiatSymbol, fiatName } from '../lib/constants';
 import { apiError, formatCrypto, formatPrice } from '../lib/format';
 import { IconShieldCheck, IconWallet, IconTrend, IconArrowRight } from '../components/icons';
 
@@ -24,7 +24,7 @@ export default function PostOffer() {
   const prefillType = params.get('type') === 'sell' ? 'sell' : params.get('type') === 'buy' ? 'buy' : null;
 
   const [type, setType] = useState(prefillType ?? 'buy');
-  const [currency, setCurrency] = useState(params.get('fiat')?.toUpperCase() || 'NGN');
+  const currency = 'ETB'; // the market trades USDT against Ethiopian Birr only
   const [price, setPrice] = useState(params.get('price') || '');
   const [amount, setAmount] = useState('');
   const [minLimit, setMinLimit] = useState('');
@@ -133,13 +133,20 @@ export default function PostOffer() {
           <div className="row" style={{ gap: 14, flexWrap: 'wrap' }}>
             <div style={{ flex: '1 1 220px' }}>
               <Field label="Fiat currency" required>
-                <select className="input" value={currency} onChange={(e) => setCurrency(e.target.value)}>
-                  {FIAT_CURRENCIES.map((c) => (
-                    <option key={c.code} value={c.code}>
-                      {c.code} — {c.name}
-                    </option>
-                  ))}
-                </select>
+                <div
+                  className="input"
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    pointerEvents: 'none',
+                  }}
+                >
+                  <span>
+                    {currency} — {fiatName(currency)}
+                  </span>
+                  <span style={{ color: 'var(--text-3)' }}>{symbol}</span>
+                </div>
               </Field>
             </div>
             <div style={{ flex: '1 1 220px' }}>

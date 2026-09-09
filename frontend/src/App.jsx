@@ -11,6 +11,8 @@ import PostOffer from './pages/PostOffer';
 import Trades from './pages/Trades';
 import TradeDetail from './pages/TradeDetail';
 import PaymentMethods from './pages/PaymentMethods';
+import Deposit from './pages/Deposit';
+import Withdraw from './pages/Withdraw';
 
 export default function App() {
   return (
@@ -37,6 +39,8 @@ export default function App() {
               <Route path="trades/:tradeRef" element={<TradeDetail />} />
               <Route path="post" element={<PostOffer />} />
               <Route path="payment-methods" element={<PaymentMethods />} />
+              <Route path="wallet/deposit" element={<Deposit />} />
+              <Route path="wallet/withdraw" element={<Withdraw />} />
             </Route>
 
             <Route path="*" element={<Navigate to="/marketplace" replace />} />

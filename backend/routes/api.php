@@ -4,6 +4,7 @@ use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\OfferController;
 use App\Http\Controllers\Api\PaymentMethodController;
 use App\Http\Controllers\Api\TradeController;
+use App\Http\Controllers\Api\WalletController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -40,5 +41,12 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/trades', [TradeController::class, 'initiate']);
     Route::post('/trades/{tradeRef}/mark-paid', [TradeController::class, 'markPaid']);
     Route::post('/trades/{tradeRef}/release', [TradeController::class, 'releaseEscrow']);
+
+    // --- USDT (BEP-20) Wallet: deposits & withdrawals ---
+    Route::get('/wallet', [WalletController::class, 'index']);
+    Route::get('/wallet/deposits', [WalletController::class, 'deposits']);
+    Route::get('/wallet/withdrawals', [WalletController::class, 'withdrawals']);
+    Route::get('/wallet/transactions', [WalletController::class, 'transactions']);
+    Route::post('/wallet/withdrawals', [WalletController::class, 'store']);
 
 }); 

@@ -57,6 +57,7 @@ function WalletButton({ onClick }) {
 
 function WalletModal({ open, onClose }) {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const wallet = user?.wallet ?? {};
   const available = Number(wallet.available_balance ?? 0);
   const escrow = Number(wallet.escrow_balance ?? 0);
@@ -94,6 +95,29 @@ function WalletModal({ open, onClose }) {
           Escrowed {CRYPTO} is locked in active sell trades until you release payment. Available
           funds can be posted as sell offers.
         </p>
+      </div>
+
+      <div className="row" style={{ gap: 10, marginTop: 18 }}>
+        <button
+          className="btn btn-buy"
+          style={{ flex: 1 }}
+          onClick={() => {
+            onClose();
+            navigate('/wallet/deposit');
+          }}
+        >
+          ↓ Deposit {CRYPTO}
+        </button>
+        <button
+          className="btn btn-sell"
+          style={{ flex: 1 }}
+          onClick={() => {
+            onClose();
+            navigate('/wallet/withdraw');
+          }}
+        >
+          ↑ Withdraw {CRYPTO}
+        </button>
       </div>
     </Modal>
   );
@@ -144,7 +168,7 @@ export default function Layout() {
           <NavLink to="/marketplace" className="nav-brand" style={{ display: 'inline-flex' }}>
             <CoinMark size={28} />
             <span>
-              Peer<em>X</em>
+              Forb<em>idden</em>
             </span>
           </NavLink>
 
@@ -217,6 +241,26 @@ export default function Layout() {
                 >
                   <IconScale size={16} /> My wallet
                 </button>
+                <button
+                  className="dropdown-item"
+                  role="menuitem"
+                  onClick={() => {
+                    setMenuOpen(false);
+                    navigate('/wallet/deposit');
+                  }}
+                >
+                  <IconWallet size={16} /> Deposit {CRYPTO}
+                </button>
+                <button
+                  className="dropdown-item"
+                  role="menuitem"
+                  onClick={() => {
+                    setMenuOpen(false);
+                    navigate('/wallet/withdraw');
+                  }}
+                >
+                  <IconLock size={16} /> Withdraw {CRYPTO}
+                </button>
 
                 <div className="dropdown-sep" />
                 <button className="dropdown-item danger" role="menuitem" disabled={loggingOut} onClick={handleLogout}>
@@ -235,7 +279,7 @@ export default function Layout() {
       <footer className="app-foot">
         <div className="container foot-inner">
           <span>
-            © {new Date().getFullYear()} {BRAND}. Crypto P2P exchange demo.
+            © {new Date().getFullYear()} {BRAND}. ETB ⇄ USDT (BEP-20) P2P · escrow protected.
           </span>
           <div className="foot-trust">
             <span>Escrow protected trades</span>

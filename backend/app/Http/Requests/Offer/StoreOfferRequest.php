@@ -15,7 +15,8 @@ class StoreOfferRequest extends FormRequest
     {
         return [
             'type' => ['required', 'in:buy,sell'],
-            'fiat_currency' => ['required', 'string', 'size:3'],
+            // Forbidden is an ETB ⇄ USDT-only marketplace.
+            'fiat_currency' => ['required', 'string', 'in:ETB'],
             'price' => ['required', 'numeric', 'gt:0'],
             'total_amount' => ['required', 'numeric', 'gt:0'],
             'min_limit' => ['required', 'numeric', 'gt:0'],

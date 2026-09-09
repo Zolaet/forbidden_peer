@@ -56,7 +56,7 @@ export function Wordmark({ size = 26, tone = 'light', fontSize = 19 }) {
           lineHeight: 1,
         }}
       >
-        Peer<span style={{ color: tone === 'light' ? 'var(--brand-2)' : 'var(--brand)' }}>X</span>
+        Forb<span style={{ color: tone === 'light' ? 'var(--brand-2)' : 'var(--brand)' }}>idden</span>
       </span>
     </span>
   );

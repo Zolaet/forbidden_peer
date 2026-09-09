@@ -4,11 +4,9 @@ import api from '../api/axios';
 import OfferCard from '../components/OfferCard';
 import TradeModal from '../components/TradeModal';
 import { useAuth } from '../context/AuthContext';
-import { CRYPTO, FIAT_CURRENCIES } from '../lib/constants';
+import { CRYPTO } from '../lib/constants';
 import { IconTrend, IconRefresh, IconPlus, IconArrowRight, IconScale } from '../components/icons';
 import '../styles/market.css';
-
-const CURRENCY_OPTIONS = [{ code: '', symbol: 'All' }, ...FIAT_CURRENCIES];
 
 function Skeletons() {
   return (
@@ -29,7 +27,6 @@ export default function Marketplace() {
   const isBuy = mode === 'buy';
   const fetchType = isBuy ? 'sell' : 'buy';
 
-  const [currency, setCurrency] = useState('');
   const [rows, setRows] = useState([]);
   const [meta, setMeta] = useState({});
   const [loading, setLoading] = useState(true);
@@ -45,7 +42,6 @@ export default function Marketplace() {
         const { data } = await api.get('/offers', {
           params: {
             type: fetchType,
-            ...(currency ? { fiat_currency: currency } : {}),
             page,
           },
         });
@@ -61,7 +57,7 @@ export default function Marketplace() {
         setLoadingMore(false);
       }
     },
-    [fetchType, currency]
+    [fetchType]
   );
 
   useEffect(() => {
@@ -71,7 +67,6 @@ export default function Marketplace() {
 
   const switchMode = (m) => {
     if (m !== mode) {
-      setCurrency('');
       setBuying(null);
       setMode(m);
     }
@@ -113,17 +108,11 @@ export default function Marketplace() {
         </div>
       </div>
 
-      <div className="quick-fiats" style={{ marginBottom: 18 }}>
-        {CURRENCY_OPTIONS.map((c) => (
-          <button
-            key={c.code || 'all'}
-            className="chip"
-            aria-pressed={currency === c.code}
-            onClick={() => setCurrency(c.code)}
-          >
-            {c.symbol}
-          </button>
-        ))}
+      <div className="quick-fiats" style={{ marginBottom: 18, gap: 8 }}>
+        <span className="chip" style={{ cursor: 'default' }}>ETB — Ethiopian Birr</span>
+        <span className="tiny faint" style={{ alignSelf: 'center' }}>
+          USDT ⇄ Birr only · escrow protected
+        </span>
       </div>
 
       {/* How-to-sell strip (only on the Sell tab) */}
@@ -199,7 +188,7 @@ export default function Marketplace() {
             {isBuy ? 'B' : 'S'}
           </span>
           <div className="state-title">
-            No active {isBuy ? 'sell' : 'buy'} ads{currency ? ` in ${currency}` : ''} right now
+            No active {isBuy ? 'sell' : 'buy'} ads right now
           </div>
           <p className="small">Be the first to list one and start trading.</p>
           <Link

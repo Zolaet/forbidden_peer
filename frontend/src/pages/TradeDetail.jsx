@@ -264,7 +264,7 @@ export default function TradeDetail() {
           <section className="panel td-card">
             <div className="tc-title">
               Progress
-              {isSeller && <small>Escrow is held by PeerX</small>}
+              {isSeller && <small>Escrow is held by Forbidden</small>}
             </div>
             <div className="steps">{steps.map((s, i) => (
               <Step key={i} title={s.title} desc={s.desc} icon={s.icon} state={s.state} />
