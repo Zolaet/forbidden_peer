@@ -16,6 +16,16 @@ class Withdrawal extends Model
     public const SENT = 'sent';
     public const FAILED = 'failed';
 
+    /**
+     * A broadcast whose outcome we could not determine.
+     *
+     * Kept separate from FAILED on purpose: FAILED means the node definitively
+     * rejected the transaction and the user's balance has been re-credited.
+     * A needs_review row may well be on chain, so re-crediting it would hand
+     * the user their money twice — it has to be looked at by a human instead.
+     */
+    public const NEEDS_REVIEW = 'needs_review';
+
     protected $fillable = [
         'user_id',
         'network',
@@ -25,6 +35,8 @@ class Withdrawal extends Model
         'net_amount',
         'client_ref',
         'tx_hash',
+        'raw_tx',
+        'nonce',
         'status',
         'error',
         'broadcast_at',
@@ -34,6 +46,7 @@ class Withdrawal extends Model
         'amount' => 'decimal:8',
         'fee' => 'decimal:8',
         'net_amount' => 'decimal:8',
+        'nonce' => 'integer',
         'broadcast_at' => 'datetime',
     ];
 

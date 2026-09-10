@@ -72,27 +72,35 @@ class BscDoctor extends Command
 
     protected function checkKeccak(): void
     {
-        // keccak256("") — the canonical Ethereum empty hash.
-        $expected = 'c5d2460186f7233c927e7db2dcc703c0e500b653ca82273b7bfad8045d85a470';
-        $actual = EthereumCrypto::keccakHex('');
-        $this->passFail(
-            'keccak256("") vector',
-            $actual === $expected,
-            $actual === $expected ? $actual : 'expected ' . $expected . ', got ' . $actual
-        );
+        try {
+            // keccak256("") — the canonical Ethereum empty hash.
+            $expected = 'c5d2460186f7233c927e7db2dcc703c0e500b653ca82273b7bfad8045d85a470';
+            $actual = EthereumCrypto::keccakHex('');
+            $this->passFail(
+                'keccak256("") vector',
+                $actual === $expected,
+                $actual === $expected ? $actual : 'expected ' . $expected . ', got ' . $actual
+            );
+        } catch (\Throwable $e) {
+            $this->passFail('keccak256("") vector', false, $e->getMessage());
+        }
     }
 
     protected function checkAddressDerivation(): void
     {
-        // privkey = 1 → the well-known first secp256k1 account.
-        $priv = str_pad('1', 64, '0', STR_PAD_LEFT);
-        $expected = '0x7e5f4552091a69125d5dfcb7b8c2659029395bdf';
-        $actual = EthereumCrypto::addressFromPrivateKey($priv);
-        $this->passFail(
-            'Address derivation (privkey=1)',
-            $actual === $expected,
-            $actual === $expected ? $actual : 'expected ' . $expected . ', got ' . $actual
-        );
+        try {
+            // privkey = 1 → the well-known first secp256k1 account.
+            $priv = str_pad('1', 64, '0', STR_PAD_LEFT);
+            $expected = '0x7e5f4552091a69125d5dfcb7b8c2659029395bdf';
+            $actual = EthereumCrypto::addressFromPrivateKey($priv);
+            $this->passFail(
+                'Address derivation (privkey=1)',
+                $actual === $expected,
+                $actual === $expected ? $actual : 'expected ' . $expected . ', got ' . $actual
+            );
+        } catch (\Throwable $e) {
+            $this->passFail('Address derivation (privkey=1)', false, $e->getMessage());
+        }
     }
 
     protected function checkEip155Signing(): void

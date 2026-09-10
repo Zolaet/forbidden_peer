@@ -12,6 +12,14 @@ Schedule::command('bsc:process-withdrawals')
     ->withoutOverlapping()
     ->description('Finish / broadcast pending withdrawals');
 
+// Escrow with no exit is worse than no escrow: an unpaid order whose window has
+// closed must give the seller their USDT back, or the balance stays locked
+// forever with nothing in the UI able to release it.
+Schedule::command('trades:expire')
+    ->everyMinute()
+    ->withoutOverlapping()
+    ->description('Cancel unpaid trades past their payment window and refund escrow');
+
 /*
 |--------------------------------------------------------------------------
 | Console Routes

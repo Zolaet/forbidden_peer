@@ -13,6 +13,18 @@ class User extends Authenticatable
 {
     use HasApiTokens, HasFactory, Notifiable;
 
+    public const ROLE_USER = 'user';
+    public const ROLE_ADMIN = 'admin';
+
+    /**
+     * Deliberately absent: 'role'.
+     *
+     * A mass-assignable role column is a self-promotion bug waiting for the
+     * first `User::create($request->validated())`. Registration happens to
+     * build its array field-by-field today, but that is one refactor from
+     * being untrue. Role changes go through `php artisan user:promote`, which
+     * force-fills the column explicitly.
+     */
     protected $fillable = [
         'name',
         'email',
@@ -30,6 +42,12 @@ class User extends Authenticatable
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
         ];
+    }
+
+    /** True for platform staff who can adjudicate disputes. */
+    public function isAdmin(): bool
+    {
+        return $this->role === self::ROLE_ADMIN;
     }
 
     // --- P2P Relationships ---

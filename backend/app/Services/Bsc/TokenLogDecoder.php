@@ -2,6 +2,7 @@
 
 namespace App\Services\Bsc;
 
+use App\Support\Money;
 use RuntimeException;
 
 /**
@@ -40,8 +41,8 @@ class TokenLogDecoder
         return [
             'from' => $from,
             'to' => $to,
-            'value_raw' => $valueRaw,                 // wei as a decimal string
-            'amount' => (float) WeiMath::fromWeiFloor($valueRaw, 8), // 8-dp internal
+            'value_raw' => $valueRaw,     // exact on-chain value in wei, as a decimal string
+            'amount' => Money::of(WeiMath::fromWeiFloor($valueRaw)), // 8-dp internal amount, floored
             'tx_hash' => (string) ($log['transactionHash'] ?? ''),
             'block_number' => (int) WeiMath::hexToDec((string) ($log['blockNumber'] ?? '0x0')),
             'contract' => strtolower((string) ($log['address'] ?? '')),

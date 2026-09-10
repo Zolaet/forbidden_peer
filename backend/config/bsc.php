@@ -56,8 +56,12 @@ return [
     // Blocks to re-scan from when the indexer has no resume point yet.
     'scan_lookback' => (int) env('BSC_SCAN_LOOKBACK', 200),
 
-    'withdrawal_min' => (float) env('WITHDRAWAL_MIN_USDT', 1),
-    'withdrawal_fee' => (float) env('WITHDRAWAL_FEE_USDT', 0),
+    // Kept as strings, not floats. A float config value stringifies as
+    // "1.0E-8" for a small fee, which Money rejects outright — and a fee that
+    // has to be subtracted from a balance exactly has no business being a float
+    // in the first place. NetworkConfig::withdrawalFee() casts for JSON output.
+    'withdrawal_min' => (string) env('WITHDRAWAL_MIN_USDT', '1'),
+    'withdrawal_fee' => (string) env('WITHDRAWAL_FEE_USDT', '0'),
 
     // BEP-20 transfer() needs ~50–80k gas; leave headroom.
     'transfer_gas_limit' => (int) env('BSC_TRANSFER_GAS_LIMIT', 100000),

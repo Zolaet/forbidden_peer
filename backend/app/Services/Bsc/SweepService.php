@@ -7,6 +7,7 @@ use App\Models\Withdrawal;
 use App\Services\Bsc\Crypto\EthTxSigner;
 use App\Services\Bsc\Crypto\EthereumCrypto;
 use App\Services\Bsc\Crypto\Keyring;
+use App\Support\Money;
 use Illuminate\Support\Facades\Log;
 
 /**
@@ -53,9 +54,10 @@ class SweepService
                 $balanceData = '0x' . EthTxSigner::balanceOfCalldata($address->address);
                 $encoded = $rpc->ethCall($contract, $balanceData);
                 $balanceWei = WeiMath::hexToDec($encoded);
-                $balance = (float) WeiMath::fromWeiFloor($balanceWei, 8);
 
-                if ($balance <= 0) {
+                // Anything that floors to zero at our 8-dp ledger precision is
+                // dust: there is nothing sendable, so skip the address.
+                if (!Money::isPositive(Money::of(WeiMath::fromWeiFloor($balanceWei)))) {
                     $stats['empty']++;
 
                     continue;

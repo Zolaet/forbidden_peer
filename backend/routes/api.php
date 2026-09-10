@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Api\Admin\AdminTradeController;
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\OfferController;
 use App\Http\Controllers\Api\PaymentMethodController;
@@ -41,6 +42,8 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/trades', [TradeController::class, 'initiate']);
     Route::post('/trades/{tradeRef}/mark-paid', [TradeController::class, 'markPaid']);
     Route::post('/trades/{tradeRef}/release', [TradeController::class, 'releaseEscrow']);
+    Route::post('/trades/{tradeRef}/cancel', [TradeController::class, 'cancel']);
+    Route::post('/trades/{tradeRef}/dispute', [TradeController::class, 'openDispute']);
 
     // --- USDT (BEP-20) Wallet: deposits & withdrawals ---
     Route::get('/wallet', [WalletController::class, 'index']);
@@ -48,5 +51,20 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/wallet/withdrawals', [WalletController::class, 'withdrawals']);
     Route::get('/wallet/transactions', [WalletController::class, 'transactions']);
     Route::post('/wallet/withdrawals', [WalletController::class, 'store']);
+
+    /*
+    |----------------------------------------------------------------------
+    | Platform owner: dispute adjudication
+    |----------------------------------------------------------------------
+    |
+    | Nested inside the auth:sanctum group, so `role:admin` only ever runs
+    | against a real authenticated user — a guest is rejected for being a
+    | guest before the role check is reached.
+    */
+    Route::middleware('role:admin')->prefix('admin')->group(function () {
+        Route::get('/trades', [AdminTradeController::class, 'index']);
+        Route::get('/trades/{tradeRef}', [AdminTradeController::class, 'show']);
+        Route::post('/trades/{tradeRef}/resolve', [AdminTradeController::class, 'resolve']);
+    });
 
 }); 

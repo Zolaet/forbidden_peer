@@ -16,13 +16,16 @@ class ProcessWithdrawals extends Command
         $counts = $service->processPending();
 
         $this->info(sprintf(
-            'Pending processed — requested: %d, sent: %d, failed: %d, still pending: %d.',
+            'Pending processed — requested: %d, sent: %d, failed: %d, needs review: %d, still pending: %d.',
             $counts['requested'],
             $counts['sent'],
             $counts['failed'],
+            $counts['needs_review'],
             $counts['still_pending']
         ));
 
-        return self::SUCCESS;
+        // A row needing review may already be on chain with the user's money
+        // debited for it. That is not a run to report as healthy.
+        return $counts['needs_review'] > 0 ? self::FAILURE : self::SUCCESS;
     }
 }

@@ -7,6 +7,7 @@ use App\Models\CryptoAddress;
 use App\Models\Deposit;
 use App\Models\Wallet;
 use App\Models\WalletTransaction;
+use App\Support\Money;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
@@ -131,7 +132,9 @@ class DepositIndexer
     {
         $decoded = TokenLogDecoder::decode($log);
 
-        if ($decoded['amount'] <= 0 || $decoded['tx_hash'] === '') {
+        // A transfer worth less than 1e-8 USDT floors to zero and cannot be
+        // credited, so it is not a deposit at all.
+        if (!Money::isPositive($decoded['amount']) || $decoded['tx_hash'] === '') {
             return false;
         }
 
@@ -215,7 +218,7 @@ class DepositIndexer
 
             // Wallet::credit opens a nested transaction (savepoint) that locks
             // the wallet row and writes the audit ledger entry.
-            $wallet->credit((float) $locked->amount, WalletTransaction::TYPE_DEPOSIT, $locked);
+            $wallet->credit((string) $locked->amount, WalletTransaction::TYPE_DEPOSIT, $locked);
 
             $locked->update([
                 'status' => Deposit::CONFIRMED,

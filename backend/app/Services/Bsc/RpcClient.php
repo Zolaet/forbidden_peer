@@ -96,6 +96,48 @@ class RpcClient
         );
     }
 
+    /**
+     * True only when EVERY configured node reports the tx as unknown, in both
+     * the block tree and the mempool.
+     *
+     * call() returns the first node that answers, which is the right trade for
+     * a read whose "yes" is trustworthy. This asks the opposite question —
+     * whether a transaction is *absent* — and a single lagging node, or one
+     * behind a load balancer, answers null for a tx another node has already
+     * mined. Acting on that answer means re-signing and broadcasting a second
+     * transfer, so the negative needs unanimity. A node we cannot reach is not
+     * a vote: unreachable means "unknown", which is not good enough to resend.
+     */
+    public function allNodesAgreeUnknown(string $txHash): bool
+    {
+        if ($txHash === '' || $this->urls === []) {
+            return false;
+        }
+
+        foreach ($this->urls as $url) {
+            foreach (['eth_getTransactionReceipt', 'eth_getTransactionByHash'] as $method) {
+                try {
+                    [$status, $body] = $this->post($url, $method, [$txHash]);
+                } catch (\Throwable $e) {
+                    return false;
+                }
+
+                if ($status >= 400 || isset($body['error'])) {
+                    return false;
+                }
+
+                // A missing `result` key is a malformed answer, and a non-null
+                // one means this node has the transaction. Either way: not
+                // unknown, so do not resend.
+                if (!array_key_exists('result', $body) || $body['result'] !== null) {
+                    return false;
+                }
+            }
+        }
+
+        return true;
+    }
+
     protected function post(string $url, string $method, array $params): array
     {
         $response = $this->http->post($url, [

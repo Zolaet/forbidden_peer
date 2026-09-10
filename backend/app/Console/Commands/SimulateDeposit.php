@@ -9,6 +9,7 @@ use App\Models\WalletTransaction;
 use App\Services\Bsc\AddressManager;
 use App\Services\Bsc\NetworkConfig;
 use App\Services\Bsc\WeiMath;
+use App\Support\Money;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\DB;
 
@@ -34,9 +35,9 @@ class SimulateDeposit extends Command
             return self::FAILURE;
         }
 
-        $amount = (float) $this->argument('amount');
+        $amount = Money::of((string) $this->argument('amount'));
         $network = NetworkConfig::network();
-        $valueRaw = WeiMath::toWei(sprintf('%.8F', $amount));
+        $valueRaw = WeiMath::toWei($amount);
 
         // A real deposit lands on the user's own derived address.
         try {
@@ -47,9 +48,8 @@ class SimulateDeposit extends Command
         }
 
         $txHash = '0x' . bin2hex(random_bytes(32));
-        $amount8 = (float) WeiMath::fromWeiFloor($valueRaw, 8);
 
-        DB::transaction(function () use ($user, $network, $cryptoAddress, $amount8, $valueRaw, $txHash, $amount) {
+        DB::transaction(function () use ($user, $network, $cryptoAddress, $amount, $valueRaw, $txHash) {
             $deposit = Deposit::create([
                 'user_id' => $user->id,
                 'network' => $network,
@@ -57,7 +57,7 @@ class SimulateDeposit extends Command
                 'from_address' => '0x' . str_repeat('0', 40), // synthetic
                 'tx_hash' => $txHash,
                 'block_number' => 0,
-                'amount' => $amount8,
+                'amount' => $amount,
                 'value_raw' => $valueRaw,
                 'confirmations' => NetworkConfig::minConfirmations(),
                 'status' => Deposit::PENDING,
@@ -72,7 +72,7 @@ class SimulateDeposit extends Command
                 ['user_id' => $user->id, 'currency' => 'USDT'],
                 ['available_balance' => 0, 'escrow_balance' => 0]
             );
-            $wallet->credit((float) $deposit->amount, WalletTransaction::TYPE_DEPOSIT, $deposit);
+            $wallet->credit((string) $deposit->amount, WalletTransaction::TYPE_DEPOSIT, $deposit);
 
             $deposit->update([
                 'status' => Deposit::CONFIRMED,
@@ -80,7 +80,7 @@ class SimulateDeposit extends Command
             ]);
         });
 
-        $this->info('Simulated ' . $amount8 . ' USDT deposit for user #' . $user->id
+        $this->info('Simulated ' . $amount . ' USDT deposit for user #' . $user->id
             . ($this->option('pending') ? ' (pending — run bsc:scan-deposits to confirm)' : ' (confirmed & credited)'));
         $this->line('tx_hash: ' . $txHash);
 

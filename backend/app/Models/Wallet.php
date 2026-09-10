@@ -2,12 +2,21 @@
 
 namespace App\Models;
 
-use Exception;
+use App\Exceptions\InsufficientBalanceException;
+use App\Support\Money;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Facades\DB;
 
+/**
+ * A user's USDT balance: what they can spend, and what is held in escrow.
+ *
+ * Every amount crossing this boundary is a decimal *string* (see Money) —
+ * never a PHP float. The columns are decimal(18,8); a float cannot represent
+ * those exactly and `+=` on a balance drifts, so the ledger would slowly stop
+ * reconciling with the trades behind it.
+ */
 class Wallet extends Model
 {
     protected $fillable = [
@@ -33,14 +42,33 @@ class Wallet extends Model
     }
 
     /**
+     * A user's wallet row, minted on demand and then locked for update.
+     *
+     * `firstOrFail()` on the relation alone 404s for anyone who has never held
+     * USDT — a perfectly normal state for the taker on a 'buy' ad, who is the
+     * crypto seller in that trade and whose balance is what gets escrowed.
+     */
+    public static function lockedFor(int $userId, string $currency = 'USDT'): self
+    {
+        // firstOrCreate is safe here: the (user_id, currency) unique index makes
+        // a concurrent create lose cleanly and re-read the winner's row.
+        $wallet = static::firstOrCreate(
+            ['user_id' => $userId, 'currency' => $currency],
+            ['available_balance' => 0, 'escrow_balance' => 0]
+        );
+
+        return static::whereKey($wallet->id)->lockForUpdate()->firstOrFail();
+    }
+
+    /**
      * Append an audit row describing the change just made to this wallet.
      * Must be called inside the same DB transaction as the balance change.
      */
     protected function record(
         string $type,
-        float $amountDelta,
-        float $availableAfter,
-        float $escrowAfter,
+        string $amountDelta,
+        string $availableAfter,
+        string $escrowAfter,
         ?Model $ref = null
     ): void {
         $this->transactions()->create([
@@ -55,25 +83,28 @@ class Wallet extends Model
     }
 
     /** Lock funds from available balance into escrow balance. */
-    public function lockEscrow(float $amount, ?Model $ref = null): bool
+    public function lockEscrow(string $amount, ?Model $ref = null): bool
     {
+        $amount = Money::of($amount);
+        $this->assertPositive($amount, 'lock in escrow');
+
         return DB::transaction(function () use ($amount, $ref) {
             /** @var Wallet $wallet */
             $wallet = static::where('id', $this->id)->lockForUpdate()->firstOrFail();
 
-            if ($wallet->available_balance < $amount) {
-                throw new Exception("Insufficient available balance to lock in escrow.");
+            if (Money::lt($wallet->available_balance, $amount)) {
+                throw new InsufficientBalanceException('Insufficient available balance to lock in escrow.');
             }
 
-            $wallet->available_balance -= $amount;
-            $wallet->escrow_balance += $amount;
+            $wallet->available_balance = Money::sub($wallet->available_balance, $amount);
+            $wallet->escrow_balance = Money::add($wallet->escrow_balance, $amount);
             $wallet->save();
 
             $wallet->record(
                 WalletTransaction::TYPE_TRADE_LOCK,
-                -1 * $amount,
-                (float) $wallet->available_balance,
-                (float) $wallet->escrow_balance,
+                Money::negate($amount),
+                $wallet->available_balance,
+                $wallet->escrow_balance,
                 $ref
             );
 
@@ -82,31 +113,42 @@ class Wallet extends Model
     }
 
     /** Complete trade: Release locked escrow to the buyer's available balance. */
-    public function releaseEscrowTo(Wallet $buyerWallet, float $amount, ?Model $ref = null): bool
+    public function releaseEscrowTo(Wallet $buyerWallet, string $amount, ?Model $ref = null): bool
     {
-        return DB::transaction(function () use ($buyerWallet, $amount, $ref) {
-            /** @var Wallet $sellerWallet */
-            $sellerWallet = static::where('id', $this->id)->lockForUpdate()->firstOrFail();
-            /** @var Wallet $targetBuyerWallet */
-            $targetBuyerWallet = static::where('id', $buyerWallet->id)->lockForUpdate()->firstOrFail();
+        $amount = Money::of($amount);
+        $this->assertPositive($amount, 'release');
 
-            if ($sellerWallet->escrow_balance < $amount) {
-                throw new Exception("Insufficient escrow balance to release.");
+        return DB::transaction(function () use ($buyerWallet, $amount, $ref) {
+            // Lock both rows in ascending id order. Two trades between the same
+            // pair of users running at once would otherwise be able to take the
+            // same two rows in opposite orders and deadlock.
+            $ids = array_values(array_unique([$this->id, $buyerWallet->id]));
+            sort($ids);
+
+            $locked = static::whereIn('id', $ids)->lockForUpdate()->get()->keyBy('id');
+
+            /** @var Wallet $sellerWallet */
+            $sellerWallet = $locked[$this->id];
+            /** @var Wallet $targetBuyerWallet */
+            $targetBuyerWallet = $locked[$buyerWallet->id];
+
+            if (Money::lt($sellerWallet->escrow_balance, $amount)) {
+                throw new InsufficientBalanceException('Insufficient escrow balance to release.');
             }
 
             // Deduct from seller's escrow, add to buyer's available balance.
-            $sellerWallet->escrow_balance -= $amount;
+            $sellerWallet->escrow_balance = Money::sub($sellerWallet->escrow_balance, $amount);
             $sellerWallet->save();
 
-            $targetBuyerWallet->available_balance += $amount;
+            $targetBuyerWallet->available_balance = Money::add($targetBuyerWallet->available_balance, $amount);
             $targetBuyerWallet->save();
 
             // Seller: escrow falls, available unchanged.
             $sellerWallet->record(
                 WalletTransaction::TYPE_TRADE_RELEASE,
-                0.0,
-                (float) $sellerWallet->available_balance,
-                (float) $sellerWallet->escrow_balance,
+                Money::zero(),
+                $sellerWallet->available_balance,
+                $sellerWallet->escrow_balance,
                 $ref
             );
 
@@ -114,8 +156,8 @@ class Wallet extends Model
             $targetBuyerWallet->record(
                 WalletTransaction::TYPE_TRADE_RELEASE,
                 $amount,
-                (float) $targetBuyerWallet->available_balance,
-                (float) $targetBuyerWallet->escrow_balance,
+                $targetBuyerWallet->available_balance,
+                $targetBuyerWallet->escrow_balance,
                 $ref
             );
 
@@ -123,26 +165,29 @@ class Wallet extends Model
         });
     }
 
-    /** Cancel trade / Dispute refund: Return escrow back to seller's available balance. */
-    public function refundEscrow(float $amount, ?Model $ref = null): bool
+    /** Cancel trade / dispute refund: Return escrow back to the holder's available balance. */
+    public function refundEscrow(string $amount, ?Model $ref = null): bool
     {
+        $amount = Money::of($amount);
+        $this->assertPositive($amount, 'refund');
+
         return DB::transaction(function () use ($amount, $ref) {
             /** @var Wallet $wallet */
             $wallet = static::where('id', $this->id)->lockForUpdate()->firstOrFail();
 
-            if ($wallet->escrow_balance < $amount) {
-                throw new Exception("Insufficient escrow balance to refund.");
+            if (Money::lt($wallet->escrow_balance, $amount)) {
+                throw new InsufficientBalanceException('Insufficient escrow balance to refund.');
             }
 
-            $wallet->escrow_balance -= $amount;
-            $wallet->available_balance += $amount;
+            $wallet->escrow_balance = Money::sub($wallet->escrow_balance, $amount);
+            $wallet->available_balance = Money::add($wallet->available_balance, $amount);
             $wallet->save();
 
             $wallet->record(
                 WalletTransaction::TYPE_TRADE_REFUND,
                 $amount,
-                (float) $wallet->available_balance,
-                (float) $wallet->escrow_balance,
+                $wallet->available_balance,
+                $wallet->escrow_balance,
                 $ref
             );
 
@@ -153,16 +198,19 @@ class Wallet extends Model
     /**
      * Credit available balance (deposits, refunds, admin). Row-locked.
      */
-    public function credit(float $amount, string $type = WalletTransaction::TYPE_ADMIN, ?Model $ref = null): bool
+    public function credit(string $amount, string $type = WalletTransaction::TYPE_ADMIN, ?Model $ref = null): bool
     {
+        $amount = Money::of($amount);
+        $this->assertPositive($amount, 'credit');
+
         return DB::transaction(function () use ($amount, $type, $ref) {
             /** @var Wallet $wallet */
             $wallet = static::where('id', $this->id)->lockForUpdate()->firstOrFail();
 
-            $wallet->available_balance += $amount;
+            $wallet->available_balance = Money::add($wallet->available_balance, $amount);
             $wallet->save();
 
-            $wallet->record($type, $amount, (float) $wallet->available_balance, (float) $wallet->escrow_balance, $ref);
+            $wallet->record($type, $amount, $wallet->available_balance, $wallet->escrow_balance, $ref);
 
             return true;
         });
@@ -171,22 +219,38 @@ class Wallet extends Model
     /**
      * Debit available balance (withdrawals, fees, admin). Row-locked.
      */
-    public function debit(float $amount, string $type = WalletTransaction::TYPE_ADMIN, ?Model $ref = null): bool
+    public function debit(string $amount, string $type = WalletTransaction::TYPE_ADMIN, ?Model $ref = null): bool
     {
+        $amount = Money::of($amount);
+        $this->assertPositive($amount, 'debit');
+
         return DB::transaction(function () use ($amount, $type, $ref) {
             /** @var Wallet $wallet */
             $wallet = static::where('id', $this->id)->lockForUpdate()->firstOrFail();
 
-            if ($wallet->available_balance < $amount) {
-                throw new Exception("Insufficient available balance.");
+            if (Money::lt($wallet->available_balance, $amount)) {
+                throw new InsufficientBalanceException('Insufficient available balance.');
             }
 
-            $wallet->available_balance -= $amount;
+            $wallet->available_balance = Money::sub($wallet->available_balance, $amount);
             $wallet->save();
 
-            $wallet->record($type, -1 * $amount, (float) $wallet->available_balance, (float) $wallet->escrow_balance, $ref);
+            $wallet->record($type, Money::negate($amount), $wallet->available_balance, $wallet->escrow_balance, $ref);
 
             return true;
         });
+    }
+
+    /**
+     * A zero or negative amount here is always a bug upstream, and moving it
+     * would move the balance the wrong way, so refuse it instead.
+     */
+    protected function assertPositive(string $amount, string $operation): void
+    {
+        if (!Money::isPositive($amount)) {
+            throw new \InvalidArgumentException(
+                'Refusing to ' . $operation . ' a non-positive amount (' . $amount . ').'
+            );
+        }
     }
 }

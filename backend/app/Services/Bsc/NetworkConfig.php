@@ -69,6 +69,23 @@ class NetworkConfig
         return (string) config('bsc.seed_file');
     }
 
+    /**
+     * The fee as a decimal string, for anything that touches the ledger.
+     *
+     * The float accessors below survive only because the wallet endpoint
+     * already ships those fields as JSON numbers. A fee subtracted from a
+     * balance has to be exact, and `(float)` on a decimal(18,8) column is not.
+     */
+    public static function withdrawalFeeExact(): string
+    {
+        return (string) config('bsc.withdrawal_fee', '0');
+    }
+
+    public static function withdrawalMinExact(): string
+    {
+        return (string) config('bsc.withdrawal_min', '1');
+    }
+
     public static function withdrawalFee(): float
     {
         return (float) config('bsc.withdrawal_fee', 0);
