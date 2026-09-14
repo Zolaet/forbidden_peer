@@ -31,6 +31,58 @@ class TradeController extends Controller
     }
 
     /**
+     * The caller's own orders, newest first.
+     *
+     * The frontend keeps a localStorage mirror of trades it has seen, but a
+     * browser is not a database: this is what makes orders exist on a fresh
+     * device, and what the trade page polls to pick up changes made by the
+     * other party, an administrator, or the trades:expire sweep.
+     */
+    public function index(Request $request): JsonResponse
+    {
+        /** @var User $user */
+        $user = Auth::user();
+
+        $trades = P2pTrade::where(function ($query) use ($user) {
+            $query->where('buyer_id', $user->id)
+                ->orWhere('seller_id', $user->id);
+        })
+            ->with(['offer', 'buyer', 'seller', 'paymentMethod'])
+            ->orderByDesc('id')
+            ->limit(50)
+            ->get();
+
+        return response()->json([
+            'trades' => $trades
+                ->map(fn (P2pTrade $trade) => $this->present($trade, $user))
+                ->values(),
+        ]);
+    }
+
+    /**
+     * One order, for a participant.
+     *
+     * Scoped to buyer or seller, so a stranger gets a 404 rather than learning
+     * the order exists — the same boundary openDispute() draws.
+     */
+    public function show(string $tradeRef): JsonResponse
+    {
+        /** @var User $user */
+        $user = Auth::user();
+
+        $trade = P2pTrade::where('trade_ref', $tradeRef)
+            ->where(function ($query) use ($user) {
+                $query->where('buyer_id', $user->id)
+                    ->orWhere('seller_id', $user->id);
+            })
+            ->firstOrFail();
+
+        return response()->json([
+            'trade' => $this->present($trade->load(['offer', 'buyer', 'seller', 'paymentMethod']), $user),
+        ]);
+    }
+
+    /**
      * Initiate a new trade and lock crypto into escrow.
      *
      * Which side is which is a property of the *ad*, not of who tapped it:

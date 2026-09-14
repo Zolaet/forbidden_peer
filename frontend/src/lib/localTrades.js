@@ -54,7 +54,9 @@ export function snapshotTrade(trade, meId, meName = 'You') {
           bank_or_provider_name: trade.payment_method.bank_or_provider_name,
         }
       : null,
-    opened_at: new Date().toISOString(),
+    // Real creation time when the trade came from the API; "now" is only the
+    // fallback for a trade this browser just opened.
+    opened_at: trade.opened_at ?? new Date().toISOString(),
   };
 }
 

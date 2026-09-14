@@ -6,7 +6,9 @@ import { useToast } from '../components/Toast';
 import {
   getLocalTrade,
   patchLocalTrade,
+  saveLocalTrade,
 } from '../lib/localTrades';
+import useTradeSync from '../hooks/useTradeSync';
 import { CRYPTO, fiatSymbol, methodDisplay } from '../lib/constants';
 import { apiError, formatCrypto, formatDateTime, formatPrice } from '../lib/format';
 import { initials } from '../lib/format';
@@ -37,6 +39,15 @@ function Step({ title, desc, icon: Icon, state }) {
   );
 }
 
+/** Toasts for transitions the *other* side (or the platform) triggered. */
+const REMOTE_CHANGES = {
+  paid: ['Buyer marked payment', 'Confirm the money really arrived, then release the escrow.'],
+  completed: ['Escrow released', 'Trade completed — the USDT has moved.'],
+  disputed: ['Dispute opened', 'An administrator will review this order.'],
+  cancelled: ['Order cancelled', 'The escrowed USDT returned to the seller.'],
+  refunded: ['Refund processed', 'The escrowed USDT returned to the seller.'],
+};
+
 export default function TradeDetail() {
   const { tradeRef } = useParams();
   const { user, refresh } = useAuth();
@@ -54,9 +65,14 @@ export default function TradeDetail() {
   // release sub-state
   const [confirmed, setConfirmed] = useState(false);
   const fileRef = useRef(null);
+  // Status as of the last applied update, so remote changes can be spotted.
+  const lastStatusRef = useRef(null);
 
   useEffect(() => {
     setTrade(getLocalTrade(tradeRef));
+    // A new order means the previous status is meaningless — without this,
+    // navigating between trades could toast a change that never happened.
+    lastStatusRef.current = null;
   }, [tradeRef]);
 
   // Keep the wallet in sync (balances move when escrow locks / releases).
@@ -65,19 +81,39 @@ export default function TradeDetail() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Apply a trade fetched from the API: mirror it into the local ledger and
+  // announce status changes the other party (or the platform) made.
+  const applyTrade = (apiTrade) => {
+    const snap = saveLocalTrade(apiTrade, user?.id, user?.name ?? 'You');
+    const prev = lastStatusRef.current;
+    if (prev && prev !== snap.status && REMOTE_CHANGES[snap.status]) {
+      const [title, msg] = REMOTE_CHANGES[snap.status];
+      toast.ok(title, msg);
+      refresh().catch(() => {});
+    }
+    lastStatusRef.current = snap.status;
+    setTrade(snap);
+  };
+
+  const { notFound } = useTradeSync(tradeRef, { onTrade: applyTrade });
+
   if (!user) return null;
   if (!trade) {
     return (
       <div className="container page">
         <div className="panel state-block">
-          <span className="dot" style={{ width: 12, height: 12, background: 'var(--gold)' }} />
-          <div className="state-title">Trade not found in this session</div>
+          <span
+            className="dot"
+            style={{ width: 12, height: 12, background: notFound ? 'var(--sell)' : 'var(--gold)' }}
+          />
+          <div className="state-title">{notFound ? 'Order not found' : 'Loading order…'}</div>
           <p className="small">
-            Trades opened on another device or before this build won't load here — the API
-            doesn't expose an order list. Re-open one from the marketplace.
+            {notFound
+              ? "This order doesn't exist, or belongs to a different account. Check the reference or sign in as a participant."
+              : 'Fetching the order from the platform.'}
           </p>
-          <Link to="/marketplace" className="btn btn-primary btn-sm" style={{ marginTop: 10 }}>
-            Browse marketplace <IconArrowRight size={14} />
+          <Link to="/trades" className="btn btn-primary btn-sm" style={{ marginTop: 10 }}>
+            Back to my trades <IconArrowRight size={14} />
           </Link>
         </div>
       </div>
@@ -98,7 +134,12 @@ export default function TradeDetail() {
 
   const sync = (ref, patch) => {
     const next = patchLocalTrade(ref, patch);
-    if (next) setTrade(next);
+    if (next) {
+      // Own actions count as seen — otherwise the next poll would toast a
+      // "change" the user just made themselves.
+      lastStatusRef.current = next.status;
+      setTrade(next);
+    }
   };
 
   const markPaid = async (e) => {

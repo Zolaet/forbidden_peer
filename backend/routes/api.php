@@ -39,6 +39,8 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/offers', [OfferController::class, 'store']);
 
     // --- Core P2P Escrow Engine ---
+    Route::get('/trades', [TradeController::class, 'index']);
+    Route::get('/trades/{tradeRef}', [TradeController::class, 'show']);
     Route::post('/trades', [TradeController::class, 'initiate']);
     Route::post('/trades/{tradeRef}/mark-paid', [TradeController::class, 'markPaid']);
     Route::post('/trades/{tradeRef}/release', [TradeController::class, 'releaseEscrow']);

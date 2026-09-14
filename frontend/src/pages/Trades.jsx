@@ -1,18 +1,49 @@
+import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { localTradesForUser } from '../lib/localTrades';
+import { localTradesForUser, saveLocalTrade } from '../lib/localTrades';
+import api from '../api/axios';
 import { CRYPTO, fiatSymbol } from '../lib/constants';
 import { formatCrypto, formatDateTime, formatPrice, timeFromNow } from '../lib/format';
 import StatusPill from '../components/StatusPill';
 import { IconArrowRight, IconClock } from '../components/icons';
 import '../styles/trades.css';
 
+const byNewest = (a, b) => new Date(b.opened_at) - new Date(a.opened_at);
+
 export default function Trades() {
   const { user } = useAuth();
   const meId = user?.id;
-  const trades = localTradesForUser(meId).sort(
-    (a, b) => new Date(b.opened_at) - new Date(a.opened_at)
-  );
+
+  // The local ledger renders instantly; the API list is the truth and replaces
+  // it (that is also what makes trades from other devices show up here).
+  const [trades, setTrades] = useState(() => localTradesForUser(meId).sort(byNewest));
+  const [loaded, setLoaded] = useState(false);
+
+  useEffect(() => {
+    let alive = true;
+
+    api
+      .get('/trades')
+      .then(({ data }) => {
+        if (!alive || !Array.isArray(data.trades)) return;
+        // Mirror into localStorage so the detail page stays warm for trades
+        // this browser had never seen.
+        const snaps = data.trades.map((t) => saveLocalTrade(t, meId, user?.name ?? 'You'));
+        setTrades(snaps);
+      })
+      .catch(() => {
+        /* offline / expired token — the local ledger is already showing */
+      })
+      .finally(() => {
+        if (alive) setLoaded(true);
+      });
+
+    return () => {
+      alive = false;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [meId]);
 
   return (
     <div className="container page">
@@ -20,11 +51,16 @@ export default function Trades() {
         <div>
           <div className="eyebrow">Order ledger</div>
           <h1 className="page-title">My trades</h1>
-          <p className="page-sub">Trades opened in this browser session, on both sides.</p>
+          <p className="page-sub">All your orders, on both sides — from any device.</p>
         </div>
       </div>
 
-      {trades.length === 0 ? (
+      {trades.length === 0 && !loaded ? (
+        <div className="panel state-block">
+          <span className="dot" style={{ width: 12, height: 12, background: 'var(--gold)' }} />
+          <div className="state-title">Loading your orders…</div>
+        </div>
+      ) : trades.length === 0 ? (
         <div className="panel state-block">
           <span className="avatar" style={{ width: 52, height: 52, fontSize: 20, background: 'var(--brand-soft)', color: 'var(--brand-2)' }}>
             ⟳

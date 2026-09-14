@@ -54,6 +54,9 @@ class TradePresenter
             'resolved_at' => $trade->resolved_at?->toIso8601String(),
             'resolution_note' => $trade->resolution_note,
             'expires_at' => $trade->expires_at?->toIso8601String(),
+            // The list and detail pages render this; without it a trade fetched
+            // from the API would show "opened now" instead of when it opened.
+            'opened_at' => $trade->created_at?->toIso8601String(),
         ];
     }
 
