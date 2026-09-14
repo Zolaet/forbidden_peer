@@ -86,8 +86,9 @@ class AdminTradeController extends Controller
      * One order in full, including the evidence.
      *
      * The payment proof attachments are the entire basis for adjudicating, so
-     * they come back with the trade. The files live on the public disk, so the
-     * path is a usable URL.
+     * they come back with the trade. Proofs live on the private disk; the
+     * attachment_url points at TradeController::downloadProof(), which an
+     * administrator is allowed through.
      */
     public function show(string $tradeRef): JsonResponse
     {
@@ -105,6 +106,9 @@ class AdminTradeController extends Controller
                 'sender_id' => $message->sender_id,
                 'message' => $message->message,
                 'attachment_path' => $message->attachment_path,
+                'attachment_url' => $message->attachment_path
+                    ? "trades/{$trade->trade_ref}/proof/{$message->id}"
+                    : null,
                 'created_at' => $message->created_at?->toIso8601String(),
             ])
             ->values()

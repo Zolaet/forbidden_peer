@@ -13,6 +13,7 @@ import { CRYPTO, fiatSymbol, methodDisplay } from '../lib/constants';
 import { apiError, formatCrypto, formatDateTime, formatPrice } from '../lib/format';
 import { initials } from '../lib/format';
 import StatusPill from '../components/StatusPill';
+import Modal from '../components/Modal';
 import { IconCheck, IconClock, IconShieldCheck, IconUpload, IconLock, IconArrowRight } from '../components/icons';
 import '../styles/trades.css';
 
@@ -67,6 +68,10 @@ export default function TradeDetail() {
   const fileRef = useRef(null);
   // Status as of the last applied update, so remote changes can be spotted.
   const lastStatusRef = useRef(null);
+  // messages / proof-of-payment
+  const [messages, setMessages] = useState([]);
+  const [proofUrl, setProofUrl] = useState('');
+  const [showProof, setShowProof] = useState(false);
 
   useEffect(() => {
     setTrade(getLocalTrade(tradeRef));
@@ -96,6 +101,49 @@ export default function TradeDetail() {
   };
 
   const { notFound } = useTradeSync(tradeRef, { onTrade: applyTrade });
+
+  // Payment proofs arrive as messages once the buyer has marked paid. Fetch
+  // once per status change — there is nothing to poll for while pending.
+  useEffect(() => {
+    if (!trade?.trade_ref || trade.status === 'pending') {
+      setMessages([]);
+      return;
+    }
+    let alive = true;
+    api
+      .get(`/trades/${tradeRef}/messages`)
+      .then(({ data }) => {
+        if (alive) setMessages(data.messages ?? []);
+      })
+      .catch(() => {});
+    return () => {
+      alive = false;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tradeRef, trade?.status]);
+
+  const proofMessage = messages.find((m) => m.attachment_url);
+
+  // The image itself: fetched as a blob because the proof endpoint needs the
+  // Authorization header, which an <img> tag cannot send.
+  useEffect(() => {
+    if (!proofMessage) return;
+    let alive = true;
+    api
+      .get(`/${proofMessage.attachment_url}`, { responseType: 'blob' })
+      .then(({ data }) => {
+        if (alive) setProofUrl(URL.createObjectURL(data));
+      })
+      .catch(() => {});
+    return () => {
+      alive = false;
+      setProofUrl((url) => {
+        if (url) URL.revokeObjectURL(url);
+        return '';
+      });
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [proofMessage?.id]);
 
   if (!user) return null;
   if (!trade) {
@@ -412,6 +460,22 @@ export default function TradeDetail() {
                 <div className="ap-label">Waiting on seller</div>
                 <div className="ap-head" style={{ color: 'var(--brand-2)' }}>Payment received</div>
                 <p className="ap-sub">The seller has been notified. They'll confirm your transfer and release the escrow.</p>
+                {proofMessage && proofUrl && (
+                  <img
+                    src={proofUrl}
+                    alt="The proof you sent"
+                    onClick={() => setShowProof(true)}
+                    style={{
+                      width: '100%',
+                      maxHeight: 120,
+                      objectFit: 'cover',
+                      borderRadius: 10,
+                      border: '1px solid var(--line)',
+                      cursor: 'zoom-in',
+                      marginTop: 6,
+                    }}
+                  />
+                )}
                 <div className="notice notice-info">
                   <IconClock size={16} style={{ marginTop: 2 }} />
                   <span>Hang tight. If the seller never responds the platform can step in — your USDT is safe in escrow.</span>
@@ -442,6 +506,33 @@ export default function TradeDetail() {
                   Confirm you received <b>{symbol}
                   {formatPrice(fiat)}</b>, then release the escrowed {formatCrypto(amount)} {CRYPTO} to the buyer.
                 </p>
+
+                {proofMessage && (
+                  <div style={{ marginBottom: 14 }}>
+                    <div className="ap-label">Buyer's payment proof</div>
+                    {proofMessage.message && (
+                      <p className="ap-sub" style={{ fontStyle: 'italic' }}>“{proofMessage.message}”</p>
+                    )}
+                    {proofUrl ? (
+                      <img
+                        src={proofUrl}
+                        alt="Payment proof"
+                        onClick={() => setShowProof(true)}
+                        style={{
+                          width: '100%',
+                          maxHeight: 160,
+                          objectFit: 'cover',
+                          borderRadius: 10,
+                          border: '1px solid var(--line)',
+                          cursor: 'zoom-in',
+                          marginTop: 8,
+                        }}
+                      />
+                    ) : (
+                      <div className="tiny faint" style={{ marginTop: 8 }}>Loading proof…</div>
+                    )}
+                  </div>
+                )}
 
                 <label className="row" style={{ gap: 10, padding: '10px 12px', borderRadius: 8, background: 'var(--bg-2)', border: '1px solid var(--line)', cursor: 'pointer', marginBottom: 14, fontSize: 13.5 }}>
                   <input
@@ -495,6 +586,15 @@ export default function TradeDetail() {
           </div>
         </aside>
       </div>
+
+      {/* Full-size proof, for either party. */}
+      <Modal open={showProof} onClose={() => setShowProof(false)} title="Payment proof" wide>
+        {proofUrl ? (
+          <img src={proofUrl} alt="Payment proof" style={{ width: '100%', borderRadius: 10 }} />
+        ) : (
+          <p className="small">Loading…</p>
+        )}
+      </Modal>
     </div>
   );
 }

@@ -21,7 +21,9 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
+use Symfony\Component\HttpFoundation\Response;
 
 class TradeController extends Controller
 {
@@ -70,16 +72,86 @@ class TradeController extends Controller
         /** @var User $user */
         $user = Auth::user();
 
-        $trade = P2pTrade::where('trade_ref', $tradeRef)
-            ->where(function ($query) use ($user) {
-                $query->where('buyer_id', $user->id)
-                    ->orWhere('seller_id', $user->id);
-            })
-            ->firstOrFail();
+        $trade = $this->participantTrade($tradeRef, $user);
 
         return response()->json([
             'trade' => $this->present($trade->load(['offer', 'buyer', 'seller', 'paymentMethod']), $user),
         ]);
+    }
+
+    /**
+     * The order's messages: notes and payment proofs.
+     *
+     * A proof attachment is referenced by a URL that points back at
+     * downloadProof() rather than at a public file — a bank-transfer screenshot
+     * is for the two parties and an administrator, not for anyone who can
+     * guess a storage path.
+     */
+    public function messages(string $tradeRef): JsonResponse
+    {
+        /** @var User $user */
+        $user = Auth::user();
+
+        $trade = $this->participantTrade($tradeRef, $user);
+
+        $messages = $trade->messages()->with('sender')->orderBy('id')->get();
+
+        return response()->json([
+            'messages' => $messages->map(function (P2pTradeMessage $message) use ($trade) {
+                return [
+                    'id' => $message->id,
+                    'sender_id' => $message->sender_id,
+                    'sender_name' => $message->sender?->name,
+                    'message' => $message->message,
+                    'is_proof_of_payment' => $message->is_proof_of_payment,
+                    // Relative to /api — the SPA's axios client carries the
+                    // bearer token; an <img> tag alone cannot.
+                    'attachment_url' => $message->attachment_path
+                        ? "trades/{$trade->trade_ref}/proof/{$message->id}"
+                        : null,
+                    'sent_at' => $message->created_at?->toIso8601String(),
+                ];
+            })->values(),
+        ]);
+    }
+
+    /**
+     * Serve one proof image to someone entitled to see it.
+     *
+     * The caller must be a participant, or an administrator — the proof is the
+     * evidence a dispute ruling turns on, so staff reach it too. New uploads
+     * go to the private disk; the public-disk fallback covers proofs uploaded
+     * before that switch.
+     */
+    public function downloadProof(string $tradeRef, int $message): Response
+    {
+        /** @var User $user */
+        $user = Auth::user();
+
+        $trade = P2pTrade::where('trade_ref', $tradeRef)->firstOrFail();
+
+        if ($trade->roleOf($user) === null && !$user->isAdmin()) {
+            // 404, not 403 — same rule as everywhere else: a stranger does
+            // not get to learn the order exists.
+            return response()->json(['error' => 'Not found.'], 404);
+        }
+
+        $proof = $trade->messages()
+            ->whereKey($message)
+            ->whereNotNull('attachment_path')
+            ->first();
+
+        if (!$proof) {
+            return response()->json(['error' => 'Not found.'], 404);
+        }
+
+        $disk = Storage::disk('local')->exists($proof->attachment_path) ? 'local' : 'public';
+
+        if (!Storage::disk($disk)->exists($proof->attachment_path)) {
+            return response()->json(['error' => 'The proof file is missing.'], 404);
+        }
+
+        return response()->file(Storage::disk($disk)->path($proof->attachment_path));
     }
 
     /**
@@ -211,7 +283,10 @@ class TradeController extends Controller
             ], 409);
         }
 
-        $path = $request->file('proof_image')->store('payment_proofs', 'public');
+        // The private disk, not 'public': proofs are bank-transfer screenshots
+        // and must only ever reach a participant or an administrator, never a
+        // bare URL. downloadProof() is the door.
+        $path = $request->file('proof_image')->store('payment_proofs', 'local');
 
         DB::transaction(function () use ($trade, $path, $request, $user) {
             $trade->update([
@@ -352,5 +427,21 @@ class TradeController extends Controller
     protected function present(P2pTrade $trade, User $viewer): array
     {
         return TradePresenter::for($trade, $viewer);
+    }
+
+    /**
+     * One order, scoped to a participant — the query behind show() and
+     * messages(). A stranger gets a 404 rather than learning the order
+     * exists.
+     */
+    protected function participantTrade(string $tradeRef, User $user): P2pTrade
+    {
+        /** @var P2pTrade */
+        return P2pTrade::where('trade_ref', $tradeRef)
+            ->where(function ($query) use ($user) {
+                $query->where('buyer_id', $user->id)
+                    ->orWhere('seller_id', $user->id);
+            })
+            ->firstOrFail();
     }
 }

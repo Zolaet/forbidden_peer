@@ -36,6 +36,9 @@ class DisputeResolutionTest extends TestCase
     {
         parent::setUp();
         Storage::fake('public');
+        // Proofs are stored on the private disk since the authorized
+        // download endpoint landed — fake it too, or tests write real files.
+        Storage::fake('local');
     }
 
     /**
