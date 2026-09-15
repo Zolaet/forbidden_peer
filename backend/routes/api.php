@@ -13,8 +13,8 @@ use Illuminate\Support\Facades\Route;
 | Public Routes (No Authentication Required)
 |--------------------------------------------------------------------------
 */
-Route::post('/register', [AuthController::class, 'register']);
-Route::post('/login', [AuthController::class, 'login']);
+Route::post('/register', [AuthController::class, 'register'])->middleware('throttle:auth');
+Route::post('/login', [AuthController::class, 'login'])->middleware('throttle:auth');
 
 // Anyone can view active public market offers
 Route::get('/offers', [OfferController::class, 'index']);
@@ -54,7 +54,8 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/wallet/deposits', [WalletController::class, 'deposits']);
     Route::get('/wallet/withdrawals', [WalletController::class, 'withdrawals']);
     Route::get('/wallet/transactions', [WalletController::class, 'transactions']);
-    Route::post('/wallet/withdrawals', [WalletController::class, 'store']);
+    Route::post('/wallet/withdrawals', [WalletController::class, 'store'])
+        ->middleware('throttle:withdrawals');
 
     /*
     |----------------------------------------------------------------------

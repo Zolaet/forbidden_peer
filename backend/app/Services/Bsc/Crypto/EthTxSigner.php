@@ -2,6 +2,7 @@
 
 namespace App\Services\Bsc\Crypto;
 
+use App\Services\Bsc\NetworkConfig;
 use App\Services\Bsc\WeiMath;
 use RuntimeException;
 
@@ -56,7 +57,10 @@ class EthTxSigner
         string $data = '',
         ?int $chainId = null
     ): string {
-        $chainId ??= (int) config('bsc.networks.' . config('bsc.network') . '.chain_id', 97);
+        // NetworkConfig is the one place that reads config/bsc.php for this,
+        // so the signing chain id and the RPC/contract presets can never drift
+        // apart on a network switch.
+        $chainId ??= NetworkConfig::chainId();
 
         $nonceBytes = self::minimalBytes(WeiMath::decToHex((string) $nonce));
         $gasPriceBytes = self::minimalBytes(WeiMath::decToHex($gasPriceWeiDec));

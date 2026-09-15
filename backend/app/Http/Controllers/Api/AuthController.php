@@ -11,7 +11,6 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Hash;
 
 class AuthController extends Controller
 {
@@ -23,15 +22,19 @@ class AuthController extends Controller
             $user = User::create([
                 'name' => $validated['name'],
                 'email' => $validated['email'],
-                'password' => Hash::make($validated['password']),
+                // Plain here on purpose: User casts `password` => 'hashed', so
+                // hashing again with Hash::make() would only be a second pass
+                // over an already-hashed value.
+                'password' => $validated['password'],
             ]);
 
-            // Auto-provision a default USDT wallet upon registration
+            // Auto-provision a default USDT wallet upon registration. Balances
+            // are decimal(18,8) strings, never floats — see App\Support\Money.
             Wallet::create([
                 'user_id' => $user->id,
                 'currency' => 'USDT',
-                'available_balance' => 0.00,
-                'escrow_balance' => 0.00,
+                'available_balance' => '0',
+                'escrow_balance' => '0',
             ]);
 
             return $user;
@@ -41,7 +44,9 @@ class AuthController extends Controller
 
         return response()->json([
             'message' => 'Registration successful.',
-            'user' => $user->load('wallet'),
+            // Same payload as profile(), so the client never has to follow up
+            // with GET /user before it can render payment methods.
+            'user' => $user->load(['wallet', 'paymentMethods']),
             'token' => $token,
         ], 201);
     }
@@ -59,7 +64,10 @@ class AuthController extends Controller
 
         return response()->json([
             'message' => 'Login successful.',
-            'user' => $user->load('wallet'),
+            // profile()'s shape, not a reduced one: TradeModal gates on
+            // user.payment_methods, and a shorter payload here leaves it
+            // showing "no saved payment method" until Layout's refresh lands.
+            'user' => $user->load(['wallet', 'paymentMethods']),
             'token' => $token,
         ]);
     }

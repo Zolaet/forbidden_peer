@@ -44,6 +44,11 @@ class TokenLogDecoder
             'value_raw' => $valueRaw,     // exact on-chain value in wei, as a decimal string
             'amount' => Money::of(WeiMath::fromWeiFloor($valueRaw)), // 8-dp internal amount, floored
             'tx_hash' => (string) ($log['transactionHash'] ?? ''),
+            // Position of this log within its transaction. One transaction can
+            // emit several Transfer events (a batch payout, a multicall, or a
+            // contract paying multiple recipients), so tx_hash alone does not
+            // identify a transfer — only (tx_hash, log_index) does.
+            'log_index' => (int) WeiMath::hexToDec((string) ($log['logIndex'] ?? '0x0')),
             'block_number' => (int) WeiMath::hexToDec((string) ($log['blockNumber'] ?? '0x0')),
             'contract' => strtolower((string) ($log['address'] ?? '')),
         ];

@@ -15,7 +15,17 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->alias([
             'role' => \App\Http\Middleware\EnsureUserHasRole::class,
         ]);
+
+        // The blanket API ceiling. The 'api' limiter itself is defined in
+        // AppServiceProvider; routes that need a tighter budget (login,
+        // withdrawals) name their own.
+        $middleware->throttleApi();
     })
     ->withExceptions(function (Exceptions $exceptions) {
-        //
+        // Anything under /api answers JSON regardless of Accept. Without this,
+        // a firstOrFail() 404 renders an HTML error page to any client that
+        // isn't axios — curl, Postman, a mobile build.
+        $exceptions->shouldRenderJsonWhen(
+            fn ($request) => $request->is('api/*') || $request->expectsJson()
+        );
     })->create();

@@ -4,7 +4,16 @@ export const BRAND = 'Forbidden';
 export const CRYPTO = 'USDT';
 export const NETWORK = 'BEP-20';
 export const NETWORK_LABEL = 'BSC (BEP-20)';
-export const API_BASE = 'http://127.0.0.1:8000/api';
+/**
+ * Where the Laravel API lives.
+ *
+ * Overridable per environment — the localhost default was hardcoded, so a
+ * production build shipped pointing at the developer's own machine. Set
+ * VITE_API_URL at build time (see .env.example).
+ */
+export const API_BASE = (
+  import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000/api'
+).replace(/\/+$/, '');
 
 /** The marketplace trades exactly one fiat: Ethiopian Birr. */
 export const FIAT_CURRENCIES = [{ code: 'ETB', symbol: 'Br', name: 'Ethiopian Birr' }];

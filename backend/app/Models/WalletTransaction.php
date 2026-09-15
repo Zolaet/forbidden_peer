@@ -19,6 +19,8 @@ class WalletTransaction extends Model
     public const TYPE_TRADE_LOCK = 'trade_lock';
     public const TYPE_TRADE_RELEASE = 'trade_release';
     public const TYPE_TRADE_REFUND = 'trade_refund';
+    /** A withdrawal that definitively failed, put back into available. */
+    public const TYPE_WITHDRAWAL_REVERSAL = 'withdrawal_reversal';
     public const TYPE_ADMIN = 'admin';
 
     protected $fillable = [

@@ -7,7 +7,11 @@ export function formatCrypto(n) {
   const abs = Math.abs(num);
   if (abs === 0) return '0';
   if (abs >= 1) {
-    return num.toLocaleString('en-US', { maximumFractionDigits: 4 });
+    // 8, not 4: every balance and crypto amount is a decimal(18,8) on the
+    // backend, so rounding to 4 here made the UI disagree with the ledger —
+    // an escrow of 1.00000001 rendered as "1". maximumFractionDigits does not
+    // pad, so ordinary amounts still show as "12.5".
+    return num.toLocaleString('en-US', { maximumFractionDigits: 8 });
   }
   // tiny amounts keep meaningful precision
   return num.toLocaleString('en-US', {

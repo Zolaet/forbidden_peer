@@ -1,10 +1,11 @@
 /**
  * Client-side "trade ledger".
  *
- * The backend exposes no GET endpoint for a user's trades, so after a trade is
- * opened we keep a lightweight mirror in localStorage. This lets the buyer
- * revisit the trade to mark it paid, and lets the seller (same browser, second
- * account) release escrow — mirroring the real order lifecycle.
+ * GET /trades is the source of truth, but it is a network round-trip: this
+ * mirror lets the trades list render instantly on load and keeps a trade
+ * visible on a flaky connection, before (or instead of) the API answering.
+ * Trades.jsx replaces the mirror with the API list as soon as it arrives, which
+ * is also what makes orders from another device show up.
  *
  * This is a UI convenience only; the backend remains the source of truth.
  */

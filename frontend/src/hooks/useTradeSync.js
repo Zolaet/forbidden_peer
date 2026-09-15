@@ -10,7 +10,19 @@ import api from '../api/axios';
  * dispute, the trades:expire sweep — land on the page without a refresh, and
  * polling stops once there is nothing left to wait for.
  */
-const OPEN_STATUSES = ['pending', 'paid', 'disputed'];
+
+/**
+ * Mirrors P2pTrade's terminal statuses on the backend. There is no shared
+ * module between PHP and JS, so the two lists can drift either way — the
+ * question is which way is safe.
+ *
+ * Listing the *terminal* states means a status this file has never heard of
+ * keeps polling, so a new open status (one that still needs live updates) is
+ * covered by default. The previous allow-list of open states had the opposite
+ * failure mode: adding a status on the backend silently stopped polling for
+ * every trade in it.
+ */
+const TERMINAL_STATUSES = ['completed', 'cancelled', 'refunded'];
 const POLL_MS = 5000;
 
 export default function useTradeSync(tradeRef, { onTrade } = {}) {
@@ -48,7 +60,7 @@ export default function useTradeSync(tradeRef, { onTrade } = {}) {
     const tick = () => {
       if (document.hidden) return;
       const status = statusRef.current;
-      if (status && !OPEN_STATUSES.includes(status)) return;
+      if (status && TERMINAL_STATUSES.includes(status)) return;
       fetchOnce();
     };
 

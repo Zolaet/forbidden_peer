@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Offer\StoreOfferRequest;
 use App\Models\P2pOffer;
 use App\Models\User; // 1. Import your User model
+use App\Support\Money;
 use Exception;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -13,12 +14,22 @@ use Illuminate\Support\Facades\Auth;
 
 class OfferController extends Controller
 {
+    /**
+     * The public marketplace board. Unauthenticated (see routes/api.php).
+     *
+     * The eager load names its columns on purpose. `with('user')` would
+     * serialise the whole row, and User only hides password/remember_token —
+     * so an anonymous caller would page through every active ad collecting
+     * merchants' email addresses and `role`s, which is a ready-made target
+     * list for credential stuffing and for picking out staff accounts. The
+     * board only ever renders the advertiser's name.
+     */
     public function index(Request $request): JsonResponse
     {
         $type = $request->query('type', 'buy'); // buy or sell
         $fiat = $request->query('fiat_currency');
 
-        $offers = P2pOffer::with('user')
+        $offers = P2pOffer::with('user:id,name')
             ->where('status', 'active')
             ->where('type', $type)
             ->when($fiat, fn($q) => $q->where('fiat_currency', strtoupper($fiat)))
@@ -41,7 +52,13 @@ class OfferController extends Controller
             // Security Check: If posting a SELL offer, verify available wallet balance
             if ($validated['type'] === 'sell') {
                 $wallet = $user->wallet;
-                if (!$wallet || $wallet->available_balance < $validated['total_amount']) {
+
+                // Money::lt, not `<`: available_balance is a decimal(18,8) and
+                // total_amount is whatever the client sent. PHP's loose `<` on
+                // two numeric strings compares them as floats past the point
+                // where floats are exact — the one comparison in the codebase
+                // that would not have matched the ledger.
+                if (!$wallet || Money::lt((string) $wallet->available_balance, (string) $validated['total_amount'])) {
                     throw new Exception("Insufficient wallet balance to create this sell offer.");
                 }
             }

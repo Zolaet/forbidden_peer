@@ -26,6 +26,12 @@ use Illuminate\Support\Facades\Log;
  *
  * Every path re-reads the trade under a row lock and guards on its status, so
  * each one is safe to run twice and safe to run concurrently with the others.
+ *
+ * Rows are always locked in the same order — trade, then offer, then wallet —
+ * so two paths touching the same ad and the same balance can only ever queue,
+ * never deadlock. Any new transition must respect that order; the one place it
+ * is subtle is that the offer lock has to be taken before the wallet lock even
+ * where the wallet is the thing being changed.
  */
 class TradeEscrow
 {
@@ -55,11 +61,13 @@ class TradeEscrow
 
             /** @var User $seller */
             $seller = $locked->seller;
+
+            // Offer lock before wallet lock — see restoreOfferCapacity().
+            $this->restoreOfferCapacity($locked);
+
             $sellerWallet = Wallet::lockedFor($seller->id);
 
             $sellerWallet->refundEscrow((string) $locked->crypto_amount, $locked);
-
-            $this->restoreOfferCapacity($locked);
 
             $locked->update([
                 'status' => P2pTrade::STATUS_CANCELLED,
@@ -155,16 +163,65 @@ class TradeEscrow
         return DB::transaction(function () use ($trade, $admin, $note) {
             $locked = $this->assertResolvable($trade);
 
+            // Offer lock before wallet lock — see restoreOfferCapacity().
+            $this->restoreOfferCapacity($locked);
+
             $sellerWallet = Wallet::lockedFor($locked->seller_id);
             $sellerWallet->refundEscrow((string) $locked->crypto_amount, $locked);
-
-            $this->restoreOfferCapacity($locked);
 
             $locked->update([
                 'status' => P2pTrade::STATUS_REFUNDED,
                 'resolved_at' => now(),
                 'resolved_by' => $admin->id,
                 'resolution_note' => $note,
+            ]);
+
+            return $locked->fresh(['offer', 'buyer', 'seller']);
+        });
+    }
+
+    /**
+     * The seller confirms the fiat arrived and hands the escrow to the buyer.
+     *
+     * Allowed while the order is merely paid *or* already disputed: releasing
+     * only ever moves money towards the buyer and only the seller can trigger
+     * it, so keeping this path open means a dispute can never be used to strand
+     * an honest seller waiting on the platform owner to wake up.
+     *
+     * This used to run inline in TradeController, which read the status outside
+     * any transaction and never re-checked it under the lock — the only
+     * transition in the codebase that could be entered twice concurrently.
+     * Routing it through here gives it the same lockTrade() the rest use.
+     *
+     * @throws DomainException when the order is not in a state that can be released
+     */
+    public function releaseBySeller(P2pTrade $trade): P2pTrade
+    {
+        return DB::transaction(function () use ($trade) {
+            $locked = $this->lockTrade($trade);
+
+            if (!in_array($locked->status, P2pTrade::RESOLVABLE_STATUSES, true)) {
+                throw new DomainException(
+                    $locked->status === P2pTrade::STATUS_PENDING
+                        ? 'The buyer has not marked this order paid yet.'
+                        : 'This order is already closed.'
+                );
+            }
+
+            /** @var User $buyer */
+            $buyer = $locked->buyer;
+
+            // Seller wallet then buyer wallet, in that order — the same order
+            // resolveToBuyer() uses, so the two releases can't deadlock on each
+            // other's wallets.
+            $sellerWallet = Wallet::lockedFor($locked->seller_id);
+            $buyerWallet = Wallet::lockedFor($buyer->id);
+
+            $sellerWallet->releaseEscrowTo($buyerWallet, (string) $locked->crypto_amount, $locked);
+
+            $locked->update([
+                'status' => P2pTrade::STATUS_COMPLETED,
+                'completed_at' => now(),
             ]);
 
             return $locked->fresh(['offer', 'buyer', 'seller']);
@@ -243,8 +300,17 @@ class TradeEscrow
     /**
      * Hand the escrowed amount back to the ad so someone else can take it.
      *
-     * Always called after the wallet lock, which keeps lock acquisition in the
-     * order every path uses: trade row, then wallet, then offer.
+     * The lock order here is load-bearing, and every caller must therefore take
+     * this lock *before* the wallet lock: trade row, then offer, then wallet.
+     *
+     * initiate() has to lock the ad first — it cannot know whose wallet to lock
+     * until it has read the ad to see which side is selling. If this path took
+     * the wallet first and then the offer, the two would acquire the same two
+     * rows in opposite orders and deadlock whenever a taker and a cancel raced
+     * on the same ad.
+     *
+     * Reading remaining_amount after lockForUpdate (rather than before) is what
+     * makes the add safe against a concurrent initiate().
      */
     protected function restoreOfferCapacity(P2pTrade $trade): void
     {

@@ -19,6 +19,7 @@ class Deposit extends Model
         'deposit_address',
         'from_address',
         'tx_hash',
+        'log_index',
         'block_number',
         'amount',
         'value_raw',
@@ -30,6 +31,7 @@ class Deposit extends Model
 
     protected $casts = [
         'amount' => 'decimal:8',
+        'log_index' => 'integer',
         'block_number' => 'integer',
         'confirmations' => 'integer',
         'detected_at' => 'datetime',

@@ -16,8 +16,10 @@ use Illuminate\Support\Facades\Log;
  * any of our per-user deposit addresses.
  *
  * Run every minute (see routes/console.php). Idempotent: new transfers are
- * keyed by tx_hash (unique), confirmations advance on each pass, and a wallet
- * is credited exactly once when a deposit crosses the confirmation threshold.
+ * keyed by (tx_hash, log_index) — the pair that identifies one Transfer log,
+ * since a single transaction can emit several — confirmations advance on each
+ * pass, and a wallet is credited exactly once when a deposit crosses the
+ * confirmation threshold.
  */
 class DepositIndexer
 {
@@ -30,7 +32,10 @@ class DepositIndexer
             Log::warning('bsc:scan-deposits skipped — no USDT contract configured for ' . $network
                 . ' (set BSC_' . strtoupper($network) . '_USDT_CONTRACT in .env).');
 
-            return ['scanned' => 0, 'new' => 0, 'confirmed' => 0];
+            // Counted as an error, not a quiet zero: scanning is a permanent
+            // no-op until someone sets that variable, and the operator needs
+            // the command to say so rather than report success every minute.
+            return ['scanned' => 0, 'new' => 0, 'confirmed' => 0, 'errors' => 1];
         }
 
         $rpc = new RpcClient();
@@ -44,10 +49,10 @@ class DepositIndexer
             $from = max(1, $tip - NetworkConfig::scanLookback());
         }
         if ($from > $tip) {
-            return ['scanned' => 0, 'new' => 0, 'confirmed' => 0];
+            return ['scanned' => 0, 'new' => 0, 'confirmed' => 0, 'errors' => 0];
         }
 
-        $stats = ['scanned' => 0, 'new' => 0, 'confirmed' => 0];
+        $stats = ['scanned' => 0, 'new' => 0, 'confirmed' => 0, 'errors' => 0];
 
         // address (lower-cased) => CryptoAddress
         $addressMap = [];
@@ -86,6 +91,8 @@ class DepositIndexer
                 Log::error('bsc:scan-deposits getLogs failed for blocks ' . $start . '-' . $end
                     . ': ' . $e->getMessage());
 
+                $stats['errors']++;
+
                 break;
             }
 
@@ -107,6 +114,7 @@ class DepositIndexer
 
                     // Don't fast-forward past the failing block; a future run
                     // re-visits it (idempotent) and retries the record.
+                    $stats['errors']++;
                     $abort = true;
 
                     break;
@@ -144,7 +152,12 @@ class DepositIndexer
         }
 
         $created = Deposit::firstOrCreate(
-            ['tx_hash' => $decoded['tx_hash']],
+            // Both columns, not tx_hash alone. A single transaction can carry
+            // several Transfer logs — a batch payout, or a contract paying more
+            // than one of our addresses — and keying on tx_hash alone silently
+            // dropped every one after the first, so those users were never
+            // credited.
+            ['tx_hash' => $decoded['tx_hash'], 'log_index' => $decoded['log_index']],
             [
                 'user_id' => $cryptoAddress->user_id,
                 'network' => $network,

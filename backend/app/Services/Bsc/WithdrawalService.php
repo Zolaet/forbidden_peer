@@ -483,7 +483,14 @@ class WithdrawalService
                 ['available_balance' => 0, 'escrow_balance' => 0]
             );
 
-            $wallet->credit((string) $locked->amount, WalletTransaction::TYPE_ADMIN, $locked);
+            // Its own type, not TYPE_ADMIN: this is the platform reversing its
+            // own failed broadcast, and the ledger has to distinguish that from
+            // a human moving money by hand.
+            $wallet->credit(
+                (string) $locked->amount,
+                WalletTransaction::TYPE_WITHDRAWAL_REVERSAL,
+                $locked
+            );
 
             // The hash is deliberately kept. Clearing it was how a failure and
             // a success became indistinguishable after the fact.

@@ -17,7 +17,12 @@ return new class extends Migration
             $table->foreignId('user_id')->constrained()->cascadeOnDelete();
             $table->string('network', 10);          // 'testnet' | 'mainnet'
             $table->string('currency', 10)->default('USDT');
-            $table->string('address', 64);          // EIP-55 style hex address
+            // Lower-cased, no checksum. AddressManager::normalizeAddress and
+            // EthereumCrypto::addressFromPrivateKey both emit lowercase, and
+            // DepositIndexer matches log topics against this column — storing a
+            // checksummed (mixed-case) address here would silently stop
+            // deposits from being detected.
+            $table->string('address', 64);
             $table->unsignedBigInteger('derivation_index'); // HD path m/44'/60'/{network}'/0/{index}
             $table->timestamps();
 
