@@ -44,40 +44,49 @@ class TradeEscrow
      * @throws DomainException when the trade is no longer open (already paid
      *                         for, disputed, released or cancelled)
      */
-    public function cancel(P2pTrade $trade, string $reason): P2pTrade
-    {
-        return DB::transaction(function () use ($trade, $reason) {
-            $locked = $this->lockTrade($trade);
+   /**
+ * Cancel an unpaid trade and return the escrowed USDT to the seller.
+ *
+ * @throws DomainException
+ */
+public function cancel(P2pTrade $trade, string $reason, bool $enforceExpiry = true): P2pTrade
+{
+    return DB::transaction(function () use ($trade, $reason, $enforceExpiry) {
+        $locked = $this->lockTrade($trade);
 
-            if ($locked->status !== P2pTrade::STATUS_PENDING) {
-                throw new DomainException(match ($locked->status) {
-                    P2pTrade::STATUS_PAID =>
-                        'The buyer has already marked this order paid — release it or raise a dispute.',
-                    P2pTrade::STATUS_DISPUTED =>
-                        'This order is in dispute — only an administrator can close it now.',
-                    default => 'This order is no longer open.',
-                });
-            }
+        if ($locked->status !== P2pTrade::STATUS_PENDING) {
+            throw new DomainException(match ($locked->status) {
+                P2pTrade::STATUS_PAID =>
+                    'The buyer has already marked this order paid — release it or raise a dispute.',
+                P2pTrade::STATUS_DISPUTED =>
+                    'This order is in dispute — only an administrator can close it now.',
+                default => 'This order is no longer open.',
+            });
+        }
 
-            /** @var User $seller */
-            $seller = $locked->seller;
+        if ($enforceExpiry && !$locked->hasExpired()) {
+            throw new DomainException(
+                'Cannot cancel while the buyer payment window is active. Wait until the order expires.'
+            );
+        }
 
-            // Offer lock before wallet lock — see restoreOfferCapacity().
-            $this->restoreOfferCapacity($locked);
+        /** @var User $seller */
+        $seller = $locked->seller;
 
-            $sellerWallet = Wallet::lockedFor($seller->id);
+        $this->restoreOfferCapacity($locked);
 
-            $sellerWallet->refundEscrow((string) $locked->crypto_amount, $locked);
+        $sellerWallet = Wallet::lockedFor($seller->id);
+        $sellerWallet->refundEscrow((string) $locked->crypto_amount, $locked);
 
-            $locked->update([
-                'status' => P2pTrade::STATUS_CANCELLED,
-                'cancelled_at' => now(),
-                'cancel_reason' => $reason,
-            ]);
+        $locked->update([
+            'status' => P2pTrade::STATUS_CANCELLED,
+            'cancelled_at' => now(),
+            'cancel_reason' => $reason,
+        ]);
 
-            return $locked->fresh(['offer', 'buyer', 'seller']);
-        });
-    }
+        return $locked->fresh(['offer', 'buyer', 'seller']);
+    });
+}
 
     /**
      * Flag a paid trade for adjudication.
@@ -255,6 +264,53 @@ class TradeEscrow
 
         return $stats;
     }
+
+
+    /**
+ * Buyer marks trade as paid and attaches proof.
+ *
+ * @throws DomainException
+ */
+public function markPaid(P2pTrade $trade, User $buyer, string $note, ?string $attachmentPath = null): P2pTrade
+{
+    return DB::transaction(function () use ($trade, $buyer, $note, $attachmentPath) {
+        $locked = $this->lockTrade($trade);
+
+        if ((int) $locked->buyer_id !== (int) $buyer->id) {
+            throw new DomainException('Only the buyer may mark this order as paid.');
+        }
+
+        if ($locked->status !== P2pTrade::STATUS_PENDING) {
+            throw new DomainException(
+                'This order can no longer be marked paid — it is no longer pending.'
+            );
+        }
+
+        if ($locked->hasExpired()) {
+            throw new DomainException(
+                'The payment window for this order has closed.'
+            );
+        }
+
+        $locked->update([
+            'status' => P2pTrade::STATUS_PAID,
+            'paid_at' => now(),
+        ]);
+
+        if ($attachmentPath !== null || !empty($note)) {
+            $locked->messages()->create([
+                'sender_id' => $buyer->id,
+                'message' => $note ?: 'Payment has been sent.',
+                'attachment_path' => $attachmentPath,
+                'is_proof_of_payment' => $attachmentPath !== null,
+            ]);
+        }
+
+        return $locked->fresh(['offer', 'buyer', 'seller', 'paymentMethod']);
+    });
+}
+
+
 
     /**
      * Re-read the trade under a row lock.
