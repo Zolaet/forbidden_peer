@@ -270,66 +270,31 @@ class TradeController extends Controller
         /** @var User $user */
         $user = Auth::user();
 
-        // This read draws the buyer boundary only. The status is deliberately
-        // not filtered on here — it is re-read under the row lock below, which
-        // is the read that decides.
         $trade = P2pTrade::where('trade_ref', $tradeRef)
             ->where('buyer_id', $user->id)
             ->firstOrFail();
 
-        // The private disk, not 'public': proofs are bank-transfer screenshots
-        // and must only ever reach a participant or an administrator, never a
-        // bare URL. downloadProof() is the door.
         $path = $request->file('proof_image')->store('payment_proofs', 'local');
 
         try {
-            DB::transaction(function () use ($trade, $path, $request, $user) {
-                // Re-read under the lock. This used to check the status and the
-                // expiry on an unlocked read, store the file, and then update
-                // without re-checking anything: a double-submit could mark the
-                // same order paid twice, and — worse — could land *after* the
-                // trades:expire sweep had refunded the seller, leaving an order
-                // marked paid whose escrow had already gone back.
-                $locked = P2pTrade::whereKey($trade->id)->lockForUpdate()->first();
-
-                if (!$locked || $locked->status !== P2pTrade::STATUS_PENDING) {
-                    throw new DomainException(
-                        'This order can no longer be marked paid — it has been cancelled, released or disputed.'
-                    );
-                }
-
-                if ($locked->hasExpired()) {
-                    throw new DomainException(
-                        'The payment window for this order has closed. Place a new order to try again.'
-                    );
-                }
-
-                $locked->update([
-                    'status' => P2pTrade::STATUS_PAID,
-                    'paid_at' => now(),
-                ]);
-
-                // Create proof message record
-                P2pTradeMessage::create([
-                    'trade_id' => $locked->id,
-                    'sender_id' => $user->id,
-                    'message' => $request->input('note', 'Payment has been sent.'),
-                    'attachment_path' => $path,
-                    'is_proof_of_payment' => true,
-                ]);
-            });
+            $updated = $this->escrow->markPaid(
+                $trade,
+                $user,
+                $path,
+                $request->input('note')
+            );
         } catch (DomainException $e) {
-            // The upload has to happen before the guard so a closed order
-            // doesn't strand a file, which means the rejection has to clean up
-            // after itself here.
             Storage::disk('local')->delete($path);
 
             return response()->json(['error' => $e->getMessage()], 409);
+        } catch (\Throwable $e) {
+            Storage::disk('local')->delete($path);
+            throw $e;
         }
 
         return response()->json([
             'message' => 'Trade marked as paid. Seller notified.',
-            'trade' => $this->present($trade->fresh(['offer', 'buyer', 'seller', 'paymentMethod']), $user),
+            'trade' => $this->present($updated, $user),
         ]);
     }
 
@@ -374,7 +339,7 @@ class TradeController extends Controller
      * Only available while the order is still unpaid: once the buyer has marked
      * it paid, the money is theirs to release or dispute, not to withdraw.
      */
-    public function cancel(Request $request, string $tradeRef): JsonResponse
+   public function cancel(Request $request, string $tradeRef): JsonResponse
     {
         /** @var User $seller */
         $seller = Auth::user();
@@ -384,7 +349,8 @@ class TradeController extends Controller
             ->firstOrFail();
 
         try {
-            $cancelled = $this->escrow->cancel($trade, 'Cancelled by the seller.');
+            // Seller cannot cancel while the buyer is still within their active payment window.
+            $cancelled = $this->escrow->cancel($trade, 'Cancelled by the seller.', enforceExpiry: true);
         } catch (DomainException $e) {
             return response()->json(['error' => $e->getMessage()], 409);
         }
